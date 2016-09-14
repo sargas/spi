@@ -6,6 +6,10 @@ class TokenType(Enum):
     INTEGER = (r'\d+', lambda x: int(x), None)
     PLUS = (r'\+', lambda x: x, lambda x, y: x + y)
     MINUS = (r'-', lambda x: x, lambda x, y: x - y)
+    MULTIPLY = (r'\*', lambda x: x, lambda x, y: x * y)
+    DIVIDE = (r'/', lambda x: x, lambda x, y: x // y)
+
+    COMPOUND_EXPRESSION = (r'\d+', lambda x: x, None)
     EOF = ('a^', lambda x: None, None)
 
     def __init__(self, regex, converter, op):
@@ -30,6 +34,7 @@ class TokenType(Enum):
     def __repr__(self):
         return '<TokenType.{}>'.format(self.name)
 
+OPS = [TokenType.PLUS, TokenType.MINUS, TokenType.MULTIPLY, TokenType.DIVIDE]
 
 class Token:
     def __init__(self, type, value):
@@ -85,17 +90,18 @@ class Interpreter:
         left = self._current_token
         self._eat([TokenType.INTEGER])
 
-        # now should have a OP
-        op = self._current_token
-        self._eat([TokenType.PLUS, TokenType.MINUS])
+        while self._current_token.type != TokenType.EOF:
+            # now should have a OP
+            op = self._current_token
+            self._eat(OPS)
 
-        # final integer
-        right = self._current_token
-        self._eat([TokenType.INTEGER])
+            # final integer
+            right = self._current_token
+            self._eat([TokenType.INTEGER])
 
-        assert self._current_token.type == TokenType.EOF
+            result = op.type.op(left.value, right.value)
+            left = Token(TokenType.COMPOUND_EXPRESSION, result)
 
-        result = op.type.op(left.value, right.value)
         return result
 
 
