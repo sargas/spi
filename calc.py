@@ -89,6 +89,7 @@ class Interpreter:
         # eat the first token (should be an int)
         left = self._current_token
         self._eat([TokenType.INTEGER])
+        result = left.value
 
         while self._current_token.type != TokenType.EOF:
             # now should have a OP
