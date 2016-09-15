@@ -115,7 +115,9 @@ class Interpreter:
 
     def expr(self):
         self._current_token = self._get_next_token()
-        return self._parse_second_layer()
+        result = self._parse_second_layer()
+        self._eat([TokenType.EOF])
+        return result
 
 
 def main():
