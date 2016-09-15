@@ -34,7 +34,8 @@ class TokenType(Enum):
     def __repr__(self):
         return '<TokenType.{}>'.format(self.name)
 
-OPS = [TokenType.PLUS, TokenType.MINUS, TokenType.MULTIPLY, TokenType.DIVIDE]
+OPS_1 = [TokenType.MULTIPLY, TokenType.DIVIDE]
+OPS_2 = [TokenType.PLUS, TokenType.MINUS]
 
 class Token:
     def __init__(self, type, value):
@@ -52,6 +53,11 @@ class Token:
 
 
 class Interpreter:
+    """
+    Rules:
+        second : first ( (PLUS|MINUS) first )*
+        first : integer ( (MULT|DIV) integer )*
+    """
     def __init__(self, text):
         self._text = text
         self._current_token = None
@@ -72,6 +78,32 @@ class Interpreter:
         raise Exception("Didn't recognize first token for '{}'".format(
             text))
 
+    def _parse_first_layer(self):
+        result = self._current_token.value
+        self._eat([TokenType.INTEGER])
+
+        while self._current_token.type in OPS_1:
+            op = self._current_token
+            self._eat(OPS_1)
+
+            right_int = self._current_token.value
+            self._eat([TokenType.INTEGER])
+            result = op.type.op(result, right_int)
+
+        return result
+
+    def _parse_second_layer(self):
+        result = self._parse_first_layer()
+
+        while self._current_token.type in OPS_2:
+            op = self._current_token
+            self._eat(OPS_2)
+
+            right_factor = self._parse_first_layer()
+            result = op.type.op(result, right_factor)
+
+        return result
+
     def _eat(self, token_types):
         for token_type in token_types:
             if self._current_token.type == token_type:
@@ -82,28 +114,8 @@ class Interpreter:
                 token_types, self._current_token))
 
     def expr(self):
-        ''' Expect self._text to be INTEGER OP INTEGER'''
-
         self._current_token = self._get_next_token()
-
-        # eat the first token (should be an int)
-        left = self._current_token
-        self._eat([TokenType.INTEGER])
-        result = left.value
-
-        while self._current_token.type != TokenType.EOF:
-            # now should have a OP
-            op = self._current_token
-            self._eat(OPS)
-
-            # final integer
-            right = self._current_token
-            self._eat([TokenType.INTEGER])
-
-            result = op.type.op(left.value, right.value)
-            left = Token(TokenType.COMPOUND_EXPRESSION, result)
-
-        return result
+        return self._parse_second_layer()
 
 
 def main():
