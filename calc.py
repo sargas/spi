@@ -8,8 +8,9 @@ class TokenType(Enum):
     MINUS = (r'-', lambda x: x, lambda x, y: x - y)
     MULTIPLY = (r'\*', lambda x: x, lambda x, y: x * y)
     DIVIDE = (r'/', lambda x: x, lambda x, y: x // y)
+    LPAREN = (r'\(', lambda x: x, None)
+    RPAREN = (r'\)', lambda x: x, None)
 
-    COMPOUND_EXPRESSION = (r'\d+', lambda x: x, None)
     EOF = ('a^', lambda x: None, None)
 
     def __init__(self, regex, converter, op):
@@ -78,16 +79,27 @@ class Interpreter:
         raise Exception("Didn't recognize first token for '{}'".format(
             text))
 
+    def _parse_int_or_parens(self):
+        if self._current_token.type == TokenType.LPAREN:
+            self._eat([TokenType.LPAREN])
+            result = self._parse_second_layer()
+            self._eat([TokenType.RPAREN])
+        elif self._current_token.type == TokenType.INTEGER:
+            result = self._current_token.value
+            self._eat([TokenType.INTEGER])
+        else:
+            raise Exception("Expected int or parenthesis for '{}'".format(
+                self._text))
+        return result
+
     def _parse_first_layer(self):
-        result = self._current_token.value
-        self._eat([TokenType.INTEGER])
+        result = self._parse_int_or_parens()
 
         while self._current_token.type in OPS_1:
             op = self._current_token
             self._eat(OPS_1)
 
-            right_int = self._current_token.value
-            self._eat([TokenType.INTEGER])
+            right_int = self._parse_int_or_parens()
             result = op.type.op(result, right_int)
 
         return result
@@ -132,5 +144,12 @@ def main():
         result = interpreter.expr()
         print(result)
 
+TEST_CASES = [
+    ('2', 2), ('2 * 3', 6), ('  2+3+4', 9), ('2*3*4  ', 24), ('1+2*  3', 7),
+    ('42* ( 2 +1)', 126), ('(2*3+36) / (2*(1+1))', 10),
+    ('7 + 3 * (10 / (12 / (3 + 1) - 1))', 22)]
 if __name__ == '__main__':
+    for x, y in TEST_CASES:
+        assert Interpreter(x).expr() == y
+    print("Tests Passed")
     main()
