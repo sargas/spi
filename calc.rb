@@ -61,19 +61,32 @@ class Interpreter
 		end
 	end
 
+	def parse_int_or_expr
+		remove_whitespace
+		match = /^\(/.match(@text)
+		if match.nil?
+			raise "Expected int, got #{@text}" unless parse_int
+			result = @current_token.value
+		else
+			@text = match.post_match
+			result = parse_second_level
+			remove_whitespace
+			@text = /^\)/.match(@text).post_match
+		end
+		return result
+	end
+
 	def parse_eof
 		remove_whitespace
 		@text.empty?
 	end
 
 	def parse_first_level
-		raise "Expected int, got #{@text}" unless parse_int
-		result = @current_token.value
+		result = parse_int_or_expr
 
 		while parse_mult or parse_div
 			op = @current_token.value
-			raise "Expected int, got #{@text}" unless parse_int
-			result = op.call(result, @current_token.value)
+			result = op.call(result, parse_int_or_expr())
 		end
 		return result
 	end
@@ -96,7 +109,7 @@ class Interpreter
 	end
 end
 
-[['2', 2], ['2 * 3', 6], ['  2+3+4', 9], ['2*3*4  ', 24], ['1+2*  3', 7]].each { |x, y| raise "Test for '#{x}}' and '#{y}' failed" if Interpreter.new(x).expr != y}
+[['2', 2], ['2 * 3', 6], ['  2+3+4', 9], ['2*3*4  ', 24], ['1+2*  3', 7], ['7 + 3 * (10 / (12 / (3 + 1) - 1) )', 22]].each { |x, y| raise "Test for '#{x}}' and '#{y}' failed" if Interpreter.new(x).expr != y}
 puts "Tests Passed"
 
 while TRUE
