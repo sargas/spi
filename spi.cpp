@@ -3,6 +3,8 @@
 #include <cctype>
 #include <vector>
 #include <stdexcept>
+#include <memory>
+#include <utility>
 
 enum token_type_t {IntegerToken, PlusToken, MinusToken, MultiplyToken, DivideToken, LParenToken, RParenToken, EOFToken};
 
@@ -95,29 +97,32 @@ class Lexer {
 class AST {
 	protected:
 		Token token;
-		std::vector<AST*> children;
-		AST(Token _token, std::vector<AST*> _children) : token(_token), children(_children) {
+		std::vector<std::unique_ptr<AST>> children;
+		AST(Token _token, std::vector<std::unique_ptr<AST>> _children) : token(_token), children(std::move(_children)) {
 		}
 		AST(Token _token) : token(_token) {
 		}
 	public:
 		Token getToken() const { return token; }
-		std::vector<AST*> getChildren() const {
-			return children;
+		AST* getChild(std::size_t i) const {
+			return children[i].get();
 		}
+		std::size_t getNumberChildren() const { return children.size(); }
 		virtual ~AST() {
-			for (auto child : children) {
-				delete child;
+			for (auto& child : children) {
+				child.reset();
 			}
 		}
 };
 std::ostream &operator<<(std::ostream &os, AST const &m) {
-	return os << "AST<token='" << m.getToken() << "', children count=" << m.getChildren().size() << ">";
+	return os << "AST<token='" << m.getToken() << "', children count=" << m.getNumberChildren() << ">";
 }
 
 class BinaryOp : public AST {
 	public:
-		BinaryOp(AST* left, Token op, AST* right) : AST(op, {left, right}) {
+		BinaryOp(std::unique_ptr<AST> left, Token op, std::unique_ptr<AST> right) : AST(op) {
+			children.emplace_back(std::move(left));
+			children.emplace_back(std::move(right));
 		}
 };
 
@@ -144,9 +149,9 @@ class Parser {
 				throw std::runtime_error("Syntax error");
 		}
 
-		AST* factor() {
+		std::unique_ptr<AST> factor() {
 			if (currentToken.getType() == IntegerToken) {
-				auto node = new Num(currentToken);
+				auto node = std::unique_ptr<AST>(new Num(currentToken));
 				eat(IntegerToken);
 				return node;
 			} else if (currentToken.getType() == LParenToken) {
@@ -159,28 +164,30 @@ class Parser {
 			}
 		}
 
-		AST* term() {
-			AST* node = factor();
+		std::unique_ptr<AST> term() {
+			auto node = factor();
 
 			while (currentToken.getType() == MultiplyToken ||
 					currentToken.getType() == DivideToken) {
 				Token op = currentToken;
 				eat(op.getType());
+				auto second_factor = factor();
 
-				node = new BinaryOp(node, op, factor());
+				node = std::unique_ptr<AST>(new BinaryOp(std::move(node), op, std::move(second_factor)));
 			}
 			return node;
 		}
 
-		AST* expr() {
-			AST* node = term();
+		std::unique_ptr<AST> expr() {
+			auto node = term();
 
 			while (currentToken.getType() == PlusToken ||
 					currentToken.getType() == MinusToken) {
 				Token op = currentToken;
 				eat(op.getType());
+				auto second_term = term();
 
-				node = new BinaryOp(node, op, term());
+				node = std::unique_ptr<AST>(new BinaryOp(std::move(node), op, std::move(second_term)));
 			}
 			return node;
 		}
@@ -189,7 +196,7 @@ class Parser {
 		Parser(Lexer* lexer) : lexer(lexer), currentToken(lexer->get_next_token()) {
 		}
 
-		AST* parse() {
+		std::unique_ptr<AST> parse() {
 			auto tree = expr();
 			if (currentToken.getType() != EOFToken)
 				throw std::runtime_error("Unexpected characters at end");
@@ -200,28 +207,32 @@ class Parser {
 
 class Interpreter {
 	private:
-		int visit(AST* node) {
-			switch(node->getToken().getType()) {
+		int visit(AST& node) {
+			switch(node.getToken().getType()) {
 				case PlusToken:
 				case MinusToken:
 				case MultiplyToken:
 				case DivideToken:
 					return visit_BinaryOp(node);
 				case IntegerToken:
-					return node->getToken().getValue();
+					return visit_Num(node);
 				default:
 					throw std::runtime_error("Unknown node type");
 			}
 		}
 
-		int visit_BinaryOp(AST* node) {
-			if (node->getChildren().size() != 2)
+		int visit_Num(AST& node) {
+			return node.getToken().getValue();
+		}
+
+		int visit_BinaryOp(AST& node) {
+			if (node.getNumberChildren() != 2)
 				throw std::runtime_error("Wrong number of children");
 
-			auto first_value = visit(node->getChildren()[0]);
-			auto second_value = visit(node->getChildren()[1]);
+			auto first_value = visit(*node.getChild(0));
+			auto second_value = visit(*node.getChild(1));
 
-			switch(node->getToken().getType()) {
+			switch(node.getToken().getType()) {
 				case PlusToken:
 					return first_value + second_value;
 				case MinusToken:
@@ -236,7 +247,7 @@ class Interpreter {
 		}
 
 	public:
-		int interpret(AST* tree) {
+		int interpret(AST& tree) {
 			return visit(tree);
 		}
 };
@@ -249,7 +260,7 @@ int main() {
 		getline(std::cin, input);
 
 		auto ast_tree = Parser(new Lexer(input)).parse();
-		std::cout << Interpreter().interpret(ast_tree) << std::endl;
-		delete ast_tree;
+		std::cout << Interpreter().interpret(*ast_tree) << std::endl;
+		ast_tree.reset();
 	}
 }
