@@ -205,15 +205,24 @@ class Parser {
 		}
 };
 
-class Interpreter {
-	private:
-		int visit(AST& node) {
+template <class T>
+class NodeVisiter {
+	protected:
+		T visit(AST& node) {
 			switch(node.getToken().getType()) {
 				case PlusToken:
 				case MinusToken:
 				case MultiplyToken:
 				case DivideToken:
-					return visit_BinaryOp(node);
+					if (node.getNumberChildren() != 2)
+						throw std::runtime_error("Wrong number of children");
+
+					{
+						auto first_value = visit(*node.getChild(0));
+						auto second_value = visit(*node.getChild(1));
+
+						return visit_BinaryOp(node, first_value, second_value);
+					}
 				case IntegerToken:
 					return visit_Num(node);
 				default:
@@ -221,17 +230,23 @@ class Interpreter {
 			}
 		}
 
+		virtual T visit_Num(AST& node) =0;
+		virtual T visit_BinaryOp(AST& node, T first_value, T second_value) =0;
+
+	public:
+		T interpret(AST& tree) {
+			return visit(tree);
+		}
+
+};
+
+class CalcInterpreter : public NodeVisiter<int> {
+	protected:
 		int visit_Num(AST& node) {
 			return node.getToken().getValue();
 		}
 
-		int visit_BinaryOp(AST& node) {
-			if (node.getNumberChildren() != 2)
-				throw std::runtime_error("Wrong number of children");
-
-			auto first_value = visit(*node.getChild(0));
-			auto second_value = visit(*node.getChild(1));
-
+		int visit_BinaryOp(AST& node, int first_value, int second_value) {
 			switch(node.getToken().getType()) {
 				case PlusToken:
 					return first_value + second_value;
@@ -245,10 +260,49 @@ class Interpreter {
 					throw std::runtime_error("Unknown node type");
 			}
 		}
+};
 
-	public:
-		int interpret(AST& tree) {
-			return visit(tree);
+class RPNInterpreter : public NodeVisiter<std::string> {
+	protected:
+		std::string visit_Num(AST& node) {
+			return std::to_string(node.getToken().getValue());
+		}
+
+		std::string visit_BinaryOp(AST& node, std::string first_value, std::string second_value) {
+			switch(node.getToken().getType()) {
+				case PlusToken:
+					return first_value + " " + second_value + " +";
+				case MinusToken:
+					return first_value + " " + second_value + " -";
+				case MultiplyToken:
+					return first_value + " " + second_value + " *";
+				case DivideToken:
+					return first_value + " " + second_value + " /";
+				default:
+					throw std::runtime_error("Unknown node type");
+			}
+		}
+};
+
+class LispInterpreter : public NodeVisiter<std::string> {
+	protected:
+		std::string visit_Num(AST& node) {
+			return std::to_string(node.getToken().getValue());
+		}
+
+		std::string visit_BinaryOp(AST& node, std::string first_value, std::string second_value) {
+			switch(node.getToken().getType()) {
+				case PlusToken:
+					return "(+ " +first_value + " " + second_value + ")";
+				case MinusToken:
+					return "(- " +first_value + " " + second_value + ")";
+				case MultiplyToken:
+					return "(* " +first_value + " " + second_value + ")";
+				case DivideToken:
+					return "(/ " +first_value + " " + second_value + ")";
+				default:
+					throw std::runtime_error("Unknown node type");
+			}
 		}
 };
 
@@ -260,7 +314,9 @@ int main() {
 		getline(std::cin, input);
 
 		auto ast_tree = Parser(new Lexer(input)).parse();
-		std::cout << Interpreter().interpret(*ast_tree) << std::endl;
+		std::cout << "RPN: " << RPNInterpreter().interpret(*ast_tree) << std::endl;
+		std::cout << "Lisp: " << LispInterpreter().interpret(*ast_tree) << std::endl;
+		std::cout << "Answer: " << CalcInterpreter().interpret(*ast_tree) << std::endl;
 		ast_tree.reset();
 	}
 }
