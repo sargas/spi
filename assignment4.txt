@@ -1,0 +1,13 @@
+BEGIN
+
+    BEGIN
+        number := 2;
+        a := NumBer;
+        B := 10 * a + 10 * NUMBER diV 4;
+        c := a - - b
+    end;
+	_num := 5;
+
+    x := 11;
+END.
+

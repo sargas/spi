@@ -8,15 +8,15 @@ class TokenTypes(Enum):
     PLUS = r'\+'
     MINUS = r'\-'
     MULTIPLY = r'\*'
-    DIVIDE = r'/'
+    DIVIDE = r'(?i)DIV'
     LPAREN = r'\('
     RPAREN = r'\)'
     DOT = r'\.'
     ASSIGN = r':='
-    ID = r'[A-za-z]+'
+    ID = r'_?[A-za-z]+'
     SEMI = r';'
-    BEGIN = r'BEGIN'
-    END = r'END'
+    BEGIN = r'(?i)BEGIN'
+    END = r'(?i)END'
     EOF = r'$^'
 
     def __init__(self, regex):
@@ -25,7 +25,7 @@ class TokenTypes(Enum):
     def __repr__(self):
         return '<TokenType.{}>'.format(self.name)
 
-RESERVED_KEYWORDS = ['BEGIN', 'END']
+RESERVED_KEYWORDS = ['BEGIN', 'END', 'DIV']
 
 
 class Token:
@@ -51,12 +51,16 @@ class Lexer:
         for token_type in TokenTypes:
             match = token_type.regex.match(text)
             if match:
+                matched_text = match.group()
+                if token_type == TokenTypes.ID:
+                    matched_text = matched_text.upper()
+
                 if token_type == TokenTypes.ID and \
-                   match.group() in RESERVED_KEYWORDS:
+                   matched_text in RESERVED_KEYWORDS:
                     continue
 
                 self._current_text = text[match.end():]
-                return Token(token_type, match.group())
+                return Token(token_type, matched_text)
         if len(text) > 0:
             raise Exception("Couldn't tokenize {}".format(text))
         return Token(TokenTypes.EOF, None)
