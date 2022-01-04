@@ -1,6 +1,9 @@
 use std::{io, iter};
 use std::io::{BufRead, Write};
-use anyhow::{anyhow, bail, Result, Ok};
+use anyhow::{anyhow, bail, Result, Ok, Context};
+use colored::*;
+
+type Numeric = f64;
 
 fn main() -> Result<()> {
     loop {
@@ -10,17 +13,22 @@ fn main() -> Result<()> {
         let stdin = io::stdin();
         let line = stdin.lock().lines().next().expect("could not read line")?;
         let mut interpreter = Interpreter::new(line);
-        println!("{}", interpreter.expr()?);
+        match interpreter.interpret() {
+            Result::Ok(result) => println!("{}", result),
+            Err(err) => eprintln!("{}: {:?}", "Error: ".red(), err),
+        }
     }
 }
 
 #[derive(Debug)]
 enum Token {
-    Integer(u32),
+    Integer(Numeric),
     Plus,
     Minus,
     Multiply,
     Divide,
+    ParenthesisStart,
+    ParenthesisEnd,
     EOF,
 }
 
@@ -37,8 +45,20 @@ impl Interpreter {
         }
     }
 
-    fn expr(&mut self) -> Result<String> {
+    /// Arithmetic expression interpreter.
+    ///
+    ///         calc>  14 + 2 * 3 - 6 / 2
+    ///         17
+    ///
+    ///         expr   : term ((PLUS | MINUS) term)*
+    ///         term   : factor ((MUL | DIV) factor)*
+    ///         factor : INTEGER | LPAREN expr RPAREN
+    fn interpret(&mut self) -> Result<Numeric> {
         self.advance()?;
+        self.expr()
+    }
+
+    fn expr(&mut self) -> Result<Numeric> {
         let mut result = self.term()?;
 
         loop {
@@ -51,6 +71,46 @@ impl Interpreter {
                     self.advance()?;
                     result -= self.term()?;
                 }
+                _ => {
+                    break;
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn advance(&mut self) -> Result<()>{
+        self.current_token = self.tokens.next().ok_or(anyhow!("no tokens left"))?;
+        Ok(())
+    }
+
+
+    fn factor(&mut self) -> Result<Numeric> {
+        match self.current_token {
+            Token::Integer(i) => {
+                self.advance()?;
+                Ok(i)
+            }
+            Token::ParenthesisStart => {
+                self.advance()?;
+                let nested_result = self.expr();
+                if let Token::ParenthesisEnd = self.current_token {
+                    self.advance()?;
+                    nested_result
+                } else {
+                    bail!("Expected ')' instead of {:?}", self.current_token)
+                }
+            }
+            _ => bail!("Expected integer or parenthesis instead of {:?}", self.current_token)
+        }
+    }
+
+    fn term(&mut self) -> Result<Numeric> {
+        let mut result = self.factor()?;
+
+        loop {
+            match self.current_token {
                 Token::Multiply => {
                     self.advance()?;
                     result *= self.term()?;
@@ -59,30 +119,12 @@ impl Interpreter {
                     self.advance()?;
                     result /= self.term()?;
                 }
-                Token::EOF => {
-                    break;
-                }
                 _ => {
-                    return Err(anyhow!("invalid token: {:?}", self.current_token));
+                    break;
                 }
             }
         }
-
-        Ok(result.to_string())
-    }
-
-    fn advance(&mut self) -> Result<()>{
-        self.current_token = self.tokens.next().ok_or(anyhow!("no tokens left"))?;
-        Ok(())
-    }
-
-    fn term(&mut self) -> Result<u32> {
-        if let Token::Integer(i) = self.current_token {
-            self.advance()?;
-            Ok(i)
-        } else {
-            bail!("unknown term {:?}", self.current_token);
-        }
+        Ok(result)
     }
 }
 
@@ -110,7 +152,7 @@ impl Lexer {
         }
     }
 
-    fn integer(&mut self) -> u32 {
+    fn integer(&mut self) -> Numeric {
         let mut num = String::from(self.current_char.unwrap());
         self.advance();
         while let Some(i) = self.current_char {
@@ -118,7 +160,7 @@ impl Lexer {
             num.push(i);
             self.advance();
         }
-        num.parse::<u32>().unwrap()
+        num.parse::<Numeric>().unwrap()
     }
 
     fn get_next_token(&mut self) -> Result<Token> {
@@ -126,7 +168,9 @@ impl Lexer {
             return Ok(Token::EOF);
         }
         loop {
-            let current_char = self.current_char.unwrap();
+            let current_char = self.current_char
+                .with_context(|| "Expecting another character")?;
+
             match current_char {
                 ch if ch.is_whitespace() => {
                     self.advance();
@@ -150,6 +194,14 @@ impl Lexer {
                     self.advance();
                     return Ok(Token::Divide)
                 },
+                '(' => {
+                    self.advance();
+                    return Ok(Token::ParenthesisStart)
+                },
+                ')' => {
+                    self.advance();
+                    return Ok(Token::ParenthesisEnd)
+                },
                 ch => return Err(anyhow!("Unable to parse {:?}", ch)),
             }
         }
@@ -165,4 +217,28 @@ impl Lexer {
         output.extend([Token::EOF]); // re-add EOF
         output
     }
+}
+
+// based on https://stackoverflow.com/a/34666891
+macro_rules! interpreter_tests {
+    ($($name:ident: $value:expr,)*) => {
+    $(
+        #[test]
+        fn $name() -> Result<()>{
+            let (input, expected) = $value;
+
+            let mut interpreter = Interpreter::new(input.to_owned());
+            let actual = interpreter.interpret()?;
+            assert_eq!(actual, expected);
+            Ok(())
+        }
+    )*
+    }
+}
+interpreter_tests! {
+    test_simple_int: ("4", 4.0),
+    test_addition: ("1 + 4", 5.0),
+    test_multiple_operators: ("1 + 3 * 5", 16.0),
+    test_parenthesis: ("(1 + 3) * 5", 20.0),
+    test_nested_parenthesis: ("7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)", 10.0),
 }
