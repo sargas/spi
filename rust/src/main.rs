@@ -29,7 +29,7 @@ enum Token {
     Divide,
     ParenthesisStart,
     ParenthesisEnd,
-    EOF,
+    Eof,
 }
 
 struct Interpreter {
@@ -40,7 +40,7 @@ struct Interpreter {
 impl Interpreter {
     fn new(text : String) -> Interpreter {
         Interpreter {
-            current_token: Token::EOF,
+            current_token: Token::Eof,
             tokens: Lexer::new(text).parse().into_iter(),
         }
     }
@@ -164,8 +164,8 @@ impl Lexer {
     }
 
     fn get_next_token(&mut self) -> Result<Token> {
-        if let None = self.current_char {
-            return Ok(Token::EOF);
+        if self.current_char.is_none() {
+            return Ok(Token::Eof);
         }
         loop {
             let current_char = self.current_char
@@ -210,11 +210,11 @@ impl Lexer {
     fn parse(&mut self) -> Vec<Token> {
         let mut output = iter::from_fn(|| {
             match self.get_next_token().ok() {
-                Some(Token::EOF) => None,
+                Some(Token::Eof) => None,
                 token => token,
             }})
             .collect::<Vec<Token>>();
-        output.extend([Token::EOF]); // re-add EOF
+        output.extend([Token::Eof]); // re-add EOF
         output
     }
 }
