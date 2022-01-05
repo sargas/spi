@@ -1,7 +1,7 @@
-use std::{io, iter};
-use std::io::{BufRead, Write};
-use anyhow::{anyhow, bail, Result, Ok, Context};
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use colored::*;
+use std::io::{BufRead, Write};
+use std::{io, iter};
 
 type Numeric = f64;
 
@@ -38,7 +38,7 @@ struct Interpreter {
 }
 
 impl Interpreter {
-    fn new(text : String) -> Interpreter {
+    fn new(text: String) -> Interpreter {
         Interpreter {
             current_token: Token::Eof,
             tokens: Lexer::new(text).parse().into_iter(),
@@ -80,11 +80,10 @@ impl Interpreter {
         Ok(result)
     }
 
-    fn advance(&mut self) -> Result<()>{
+    fn advance(&mut self) -> Result<()> {
         self.current_token = self.tokens.next().ok_or(anyhow!("no tokens left"))?;
         Ok(())
     }
-
 
     fn factor(&mut self) -> Result<Numeric> {
         match self.current_token {
@@ -102,7 +101,10 @@ impl Interpreter {
                     bail!("Expected ')' instead of {:?}", self.current_token)
                 }
             }
-            _ => bail!("Expected integer or parenthesis instead of {:?}", self.current_token)
+            _ => bail!(
+                "Expected integer or parenthesis instead of {:?}",
+                self.current_token
+            ),
         }
     }
 
@@ -156,7 +158,9 @@ impl Lexer {
         let mut num = String::from(self.current_char.unwrap());
         self.advance();
         while let Some(i) = self.current_char {
-            if !i.is_numeric() { break; }
+            if !i.is_numeric() {
+                break;
+            }
             num.push(i);
             self.advance();
         }
@@ -168,52 +172,52 @@ impl Lexer {
             return Ok(Token::Eof);
         }
         loop {
-            let current_char = self.current_char
+            let current_char = self
+                .current_char
                 .with_context(|| "Expecting another character")?;
 
             match current_char {
                 ch if ch.is_whitespace() => {
                     self.advance();
-                },
+                }
                 ch if ch.is_numeric() => {
                     return Ok(Token::Integer(self.integer()));
-                },
+                }
                 '+' => {
                     self.advance();
-                    return Ok(Token::Plus)
-                },
+                    return Ok(Token::Plus);
+                }
                 '-' => {
                     self.advance();
-                    return Ok(Token::Minus)
-                },
+                    return Ok(Token::Minus);
+                }
                 '*' => {
                     self.advance();
-                    return Ok(Token::Multiply)
-                },
+                    return Ok(Token::Multiply);
+                }
                 '/' => {
                     self.advance();
-                    return Ok(Token::Divide)
-                },
+                    return Ok(Token::Divide);
+                }
                 '(' => {
                     self.advance();
-                    return Ok(Token::ParenthesisStart)
-                },
+                    return Ok(Token::ParenthesisStart);
+                }
                 ')' => {
                     self.advance();
-                    return Ok(Token::ParenthesisEnd)
-                },
+                    return Ok(Token::ParenthesisEnd);
+                }
                 ch => return Err(anyhow!("Unable to parse {:?}", ch)),
             }
         }
     }
 
     fn parse(&mut self) -> Vec<Token> {
-        let mut output = iter::from_fn(|| {
-            match self.get_next_token().ok() {
-                Some(Token::Eof) => None,
-                token => token,
-            }})
-            .collect::<Vec<Token>>();
+        let mut output = iter::from_fn(|| match self.get_next_token().ok() {
+            Some(Token::Eof) => None,
+            token => token,
+        })
+        .collect::<Vec<Token>>();
         output.extend([Token::Eof]); // re-add EOF
         output
     }
