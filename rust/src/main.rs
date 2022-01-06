@@ -1,4 +1,4 @@
-use crate::interpreter::Interpreter;
+use crate::interpreter::{lisp_notation, rpn, Interpreter};
 use crate::lexer::{Lexer, Token};
 use crate::parser::Parser;
 use anyhow::{Ok, Result};
@@ -21,17 +21,27 @@ fn main() -> Result<()> {
         let line = stdin.lock().lines().next().expect("could not read line")?;
 
         match line_to_result(line) {
-            Result::Ok(result) => println!("{}", result),
+            Result::Ok((result, ast_debug, rpn_output, lisp_output)) => {
+                println!("{}", result);
+                println!("AST: {}", ast_debug);
+                println!("RPN: {}", rpn_output);
+                println!("Lisp: {}", lisp_output);
+            }
             Err(err) => eprintln!("{}: {:?}", "Error: ".red(), err),
         }
     }
 }
 
-fn line_to_result(line: String) -> Result<Numeric> {
+fn line_to_result(line: String) -> Result<(Numeric, String, String, String)> {
     let tokens = Lexer::new(line).parse();
     let ast = Parser::new(tokens).parse()?;
 
-    Ok(Interpreter::new().visit(&ast))
+    Ok((
+        Interpreter::new().visit(&ast),
+        format!("{:?}", ast),
+        rpn(&ast),
+        lisp_notation(&ast),
+    ))
 }
 
 // based on https://stackoverflow.com/a/34666891
@@ -42,7 +52,7 @@ macro_rules! interpreter_tests {
         fn $name() -> Result<()>{
             let (input, expected) = $value;
 
-            let actual = line_to_result(input.to_owned())?;
+            let actual = line_to_result(input.to_owned())?.0;
             assert_eq!(actual, expected);
             Ok(())
         }

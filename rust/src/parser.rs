@@ -61,11 +61,11 @@ impl Parser {
             match self.current_token {
                 Token::Multiply => {
                     self.advance()?;
-                    result = Ast::Multiply(Box::from(result), Box::from(self.term()?));
+                    result = Ast::Multiply(Box::from(result), Box::from(self.factor()?));
                 }
                 Token::Divide => {
                     self.advance()?;
-                    result = Ast::Divide(Box::from(result), Box::from(self.term()?));
+                    result = Ast::Divide(Box::from(result), Box::from(self.factor()?));
                 }
                 _ => {
                     break;
@@ -121,7 +121,7 @@ fn test_one_operation() -> Result<()> {
             Token::Integer(6.0),
             Token::Eof
         ])
-            .parse()?,
+        .parse()?,
         Ast::Add(Box::from(Ast::Number(4.0)), Box::from(Ast::Number(6.0))),
     );
     Ok(())
@@ -140,7 +140,7 @@ fn test_multiple_operations() -> Result<()> {
             Token::Integer(4.0),
             Token::Eof
         ])
-            .parse()?,
+        .parse()?,
         Ast::Add(
             Box::from(Ast::Add(
                 Box::from(Ast::Add(
