@@ -22,10 +22,11 @@ fn main() -> Result<()> {
 
         match line_to_result(line) {
             Result::Ok((result, ast_debug, rpn_output, lisp_output)) => {
-                println!("{}", result);
+                println!("{}: {}", "Result".green().bold(), result.to_string().bold());
                 println!("AST: {}", ast_debug);
                 println!("RPN: {}", rpn_output);
                 println!("Lisp: {}", lisp_output);
+                println!();
             }
             Err(err) => eprintln!("{}: {:?}", "Error: ".red(), err),
         }
@@ -65,4 +66,5 @@ interpreter_tests! {
     test_multiple_operators: ("1 + 3 * 5", 16.0),
     test_parenthesis: ("(1 + 3) * 5", 20.0),
     test_nested_parenthesis: ("7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)", 10.0),
+    test_unary_operations: ("5 - - - + - (3 + 4) - +2", 10.0),
 }

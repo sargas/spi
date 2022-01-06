@@ -9,6 +9,9 @@ pub(crate) enum Ast {
     Divide(Box<Ast>, Box<Ast>),
 
     Number(Numeric),
+
+    PositiveUnary(Box<Ast>),
+    NegativeUnary(Box<Ast>),
 }
 
 pub(crate) struct Parser {
@@ -29,9 +32,17 @@ impl Parser {
         Ok(())
     }
 
-    /// factor : INTEGER | LPAREN expr RPAREN
+    /// factor : (PLUS | MINUS) factor | INTEGER | LPAREN expr RPAREN
     fn factor(&mut self) -> Result<Ast> {
         match self.current_token {
+            Token::Plus => {
+                self.advance()?;
+                Ok(Ast::PositiveUnary(Box::from(self.factor()?)))
+            }
+            Token::Minus => {
+                self.advance()?;
+                Ok(Ast::NegativeUnary(Box::from(self.factor()?)))
+            }
             Token::Integer(i) => {
                 self.advance()?;
                 Ok(Ast::Number(i))
