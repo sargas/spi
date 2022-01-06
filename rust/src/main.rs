@@ -34,7 +34,7 @@ fn main() -> Result<()> {
 }
 
 fn line_to_result(line: String) -> Result<(Numeric, String, String, String)> {
-    let tokens = Lexer::new(line).parse();
+    let tokens = Lexer::new(line);
     let ast = Parser::new(tokens).parse()?;
 
     Ok((

@@ -1,6 +1,5 @@
 use crate::Numeric;
 use anyhow::{bail, Context, Ok, Result};
-use std::iter;
 
 #[derive(Debug)]
 pub(crate) enum Token {
@@ -95,14 +94,12 @@ impl Lexer {
             }
         }
     }
+}
 
-    pub(crate) fn parse(&mut self) -> Vec<Token> {
-        let mut output = iter::from_fn(|| match self.get_next_token().ok() {
-            Some(Token::Eof) => None,
-            token => token,
-        })
-        .collect::<Vec<Token>>();
-        output.extend([Token::Eof]); // re-add EOF
-        output
+impl Iterator for Lexer {
+    type Item = Result<Token>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.get_next_token())
     }
 }

@@ -14,21 +14,22 @@ pub(crate) enum Ast {
     NegativeUnary(Box<Ast>),
 }
 
-pub(crate) struct Parser {
+pub(crate) struct Parser<I: Iterator<Item=Result<Token>>> {
     current_token: Token,
-    tokens: std::vec::IntoIter<Token>,
+    tokens: I,
 }
 
-impl Parser {
-    pub(crate) fn new(tokens: Vec<Token>) -> Parser {
+impl<I: Iterator<Item=Result<Token>>> Parser<I> {
+    pub(crate) fn new(tokens: I) -> Parser<I> {
         Parser {
             current_token: Token::Eof,
-            tokens: tokens.into_iter(),
+            tokens,
         }
     }
 
+
     fn advance(&mut self) -> Result<()> {
-        self.current_token = self.tokens.next().ok_or(anyhow!("no tokens left"))?;
+        self.current_token = self.tokens.next().ok_or(anyhow!("no tokens left"))??;
         Ok(())
     }
 
@@ -117,7 +118,7 @@ impl Parser {
 #[test]
 fn test_simple() -> Result<()> {
     assert_eq!(
-        Parser::new(vec![Token::Integer(4.0), Token::Eof]).parse()?,
+        Parser::new(vec![Ok(Token::Integer(4.0)), Ok(Token::Eof)].into_iter()).parse()?,
         Ast::Number(4.0),
     );
     Ok(())
@@ -127,11 +128,11 @@ fn test_simple() -> Result<()> {
 fn test_one_operation() -> Result<()> {
     assert_eq!(
         Parser::new(vec![
-            Token::Integer(4.0),
-            Token::Plus,
-            Token::Integer(6.0),
-            Token::Eof
-        ])
+            Ok(Token::Integer(4.0)),
+               Ok(Token::Plus),
+                  Ok(Token::Integer(6.0)),
+                     Ok(Token::Eof)
+        ].into_iter())
         .parse()?,
         Ast::Add(Box::from(Ast::Number(4.0)), Box::from(Ast::Number(6.0))),
     );
@@ -142,15 +143,15 @@ fn test_one_operation() -> Result<()> {
 fn test_multiple_operations() -> Result<()> {
     assert_eq!(
         Parser::new(vec![
-            Token::Integer(1.0),
-            Token::Plus,
-            Token::Integer(2.0),
-            Token::Plus,
-            Token::Integer(3.0),
-            Token::Plus,
-            Token::Integer(4.0),
-            Token::Eof
-        ])
+            Ok(Token::Integer(1.0)),
+            Ok(Token::Plus),
+            Ok(Token::Integer(2.0)),
+            Ok(Token::Plus),
+            Ok(Token::Integer(3.0)),
+            Ok(Token::Plus),
+            Ok(Token::Integer(4.0)),
+            Ok(Token::Eof)
+        ].into_iter())
         .parse()?,
         Ast::Add(
             Box::from(Ast::Add(
@@ -170,17 +171,17 @@ fn test_multiple_operations() -> Result<()> {
 fn test_overriding_precedence() -> Result<()> {
     assert_eq!(
         Parser::new(vec![
-            Token::Integer(1.0),
-            Token::Multiply,
-            Token::ParenthesisStart,
-            Token::Integer(2.0),
-            Token::Plus,
-            Token::Integer(3.0),
-            Token::Multiply,
-            Token::Integer(4.0),
-            Token::ParenthesisEnd,
-            Token::Eof
-        ])
+            Ok(Token::Integer(1.0)),
+            Ok(Token::Multiply),
+            Ok(Token::ParenthesisStart),
+            Ok(Token::Integer(2.0)),
+            Ok(Token::Plus),
+            Ok(Token::Integer(3.0)),
+            Ok(Token::Multiply),
+            Ok(Token::Integer(4.0)),
+            Ok(Token::ParenthesisEnd),
+            Ok(Token::Eof)
+        ].into_iter())
         .parse()?,
         Ast::Multiply(
             Box::from(Ast::Number(1.0)),
