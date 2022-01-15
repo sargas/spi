@@ -1,7 +1,9 @@
 use crate::Numeric;
 use anyhow::{bail, Context, Ok, Result};
+use std::str::FromStr;
+use strum_macros::EnumString;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum Token {
     Integer(Numeric),
     Plus,
@@ -11,6 +13,18 @@ pub(crate) enum Token {
     ParenthesisStart,
     ParenthesisEnd,
     Eof,
+    Keyword(Keyword),
+    Identifier(String),
+    Semi,
+    Assign,
+    Dot,
+}
+
+#[derive(Debug, EnumString, PartialEq)]
+#[strum(ascii_case_insensitive)]
+pub(crate) enum Keyword {
+    Begin,
+    End,
 }
 
 pub(crate) struct Lexer {
@@ -20,7 +34,7 @@ pub(crate) struct Lexer {
 }
 
 impl Lexer {
-    pub(crate) fn new(text: String) -> Lexer {
+    pub(crate) fn new(text: &str) -> Lexer {
         Lexer {
             text: text.chars().collect(),
             pos: 0,
@@ -48,6 +62,19 @@ impl Lexer {
             self.advance();
         }
         num.parse::<Numeric>().unwrap()
+    }
+
+    fn id(&mut self) -> String {
+        let mut name = String::new();
+        while self.current_char.filter(|c| c.is_alphanumeric()).is_some() {
+            name.push(self.current_char.unwrap());
+            self.advance();
+        }
+        name
+    }
+
+    fn peek(&self) -> Option<&char> {
+        self.text.get(self.pos + 1)
     }
 
     fn get_next_token(&mut self) -> Result<Token> {
@@ -90,6 +117,26 @@ impl Lexer {
                     self.advance();
                     return Ok(Token::ParenthesisEnd);
                 }
+                ch if ch.is_alphabetic() => {
+                    let name = self.id();
+                    return match Keyword::from_str(&name) {
+                        std::result::Result::Ok(keyword) => Ok(Token::Keyword(keyword)),
+                        _ => Ok(Token::Identifier(name)),
+                    };
+                }
+                ':' if self.peek().filter(|ch| *ch == &'=').is_some() => {
+                    self.advance();
+                    self.advance();
+                    return Ok(Token::Assign);
+                }
+                ';' => {
+                    self.advance();
+                    return Ok(Token::Semi);
+                }
+                '.' => {
+                    self.advance();
+                    return Ok(Token::Dot);
+                }
                 ch => bail!("Unable to parse {:?}", ch),
             }
         }
@@ -102,4 +149,23 @@ impl Iterator for Lexer {
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.get_next_token())
     }
+}
+
+#[test]
+fn test_lexer() -> Result<()> {
+    let expected_tokens = vec![
+        Token::Keyword(Keyword::Begin),
+        Token::Identifier("a".to_string()),
+        Token::Assign,
+        Token::Integer(2.0),
+        Token::Semi,
+        Token::Keyword(Keyword::End),
+        Token::Dot,
+    ];
+
+    let lexer = Lexer::new("BEGIN a := 2; END.");
+    for (actual, expected) in lexer.zip(expected_tokens) {
+        assert_eq!(actual?, expected);
+    }
+    Ok(())
 }

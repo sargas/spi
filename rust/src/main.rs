@@ -1,7 +1,8 @@
 use crate::interpreter::{lisp_notation, rpn, Interpreter};
 use crate::lexer::{Lexer, Token};
 use crate::parser::Parser;
-use anyhow::{Ok, Result};
+use anyhow::{Context, Ok, Result};
+use clap::Parser as ClapParser;
 use colored::*;
 use std::io;
 use std::io::{BufRead, Write};
@@ -12,7 +13,30 @@ mod parser;
 
 type Numeric = f64;
 
+#[derive(ClapParser)]
+#[clap(author, version, about)]
+struct CliArgs {
+    /// Pascal file to interpret
+    #[clap(parse(from_os_str))]
+    path: Option<std::path::PathBuf>,
+}
+
 fn main() -> Result<()> {
+    let args: CliArgs = CliArgs::parse();
+
+    if args.path.is_some() {
+        let path = args.path.unwrap();
+        let content = std::fs::read_to_string(&path)
+            .with_context(|| format!("could not read file `{}`", &path.to_string_lossy()))?;
+
+        let tokens = Lexer::new(&content);
+        let ast = Parser::new(tokens).parse()?;
+        let mut interpreter = Interpreter::new();
+        let output = interpreter.interpret(&ast);
+        println!("Variables: {:?}", interpreter.global_scope);
+        return output;
+    }
+
     loop {
         print!("calc > ");
         io::stdout().flush()?;
@@ -34,11 +58,11 @@ fn main() -> Result<()> {
 }
 
 fn line_to_result(line: String) -> Result<(Numeric, String, String, String)> {
-    let tokens = Lexer::new(line);
-    let ast = Parser::new(tokens).parse()?;
+    let tokens = Lexer::new(&line);
+    let ast = Parser::new(tokens).parse_expression()?;
 
     Ok((
-        Interpreter::new().visit(&ast),
+        Interpreter::new().visit_expression(&ast)?,
         format!("{:?}", ast),
         rpn(&ast),
         lisp_notation(&ast),
