@@ -11,7 +11,7 @@ mod interpreter;
 mod lexer;
 mod parser;
 
-type Numeric = f64;
+type Numeric = i64;
 
 #[derive(ClapParser)]
 #[clap(author, version, about)]
@@ -85,10 +85,10 @@ macro_rules! interpreter_tests {
     }
 }
 interpreter_tests! {
-    test_simple_int: ("4", 4.0),
-    test_addition: ("1 + 4", 5.0),
-    test_multiple_operators: ("1 + 3 * 5", 16.0),
-    test_parenthesis: ("(1 + 3) * 5", 20.0),
-    test_nested_parenthesis: ("7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)", 10.0),
-    test_unary_operations: ("5 - - - + - (3 + 4) - +2", 10.0),
+    test_simple_int: ("4", 4),
+    test_addition: ("1 + 4", 5),
+    test_multiple_operators: ("1 + 3 * 5", 16),
+    test_parenthesis: ("(1 + 3) * 5", 20),
+    test_nested_parenthesis: ("7 + 3 * (10 div (12 Div (3 + 1) - 1)) dIV (2 + 3) - 5 - 3 + (8)", 10),
+    test_unary_operations: ("5 - - - + - (3 + 4) - +2", 10),
 }

@@ -93,7 +93,7 @@ impl<I: Iterator<Item = Result<Token>>> Parser<I> {
                     self.advance()?;
                     result = Ast::Multiply(Box::from(result), Box::from(self.factor()?));
                 }
-                Token::Divide => {
+                Token::Keyword(Keyword::Div) => {
                     self.advance()?;
                     result = Ast::Divide(Box::from(result), Box::from(self.factor()?));
                 }
@@ -225,9 +225,9 @@ impl<I: Iterator<Item = Result<Token>>> Parser<I> {
 #[test]
 fn test_simple() -> Result<()> {
     assert_eq!(
-        Parser::new(vec![Ok(Token::Integer(4.0)), Ok(Token::Eof)].into_iter())
+        Parser::new(vec![Ok(Token::Integer(4)), Ok(Token::Eof)].into_iter())
             .parse_expression()?,
-        Ast::Number(4.0),
+        Ast::Number(4),
     );
     Ok(())
 }
@@ -237,15 +237,15 @@ fn test_one_operation() -> Result<()> {
     assert_eq!(
         Parser::new(
             vec![
-                Ok(Token::Integer(4.0)),
+                Ok(Token::Integer(4)),
                 Ok(Token::Plus),
-                Ok(Token::Integer(6.0)),
+                Ok(Token::Integer(6)),
                 Ok(Token::Eof)
             ]
             .into_iter()
         )
         .parse_expression()?,
-        Ast::Add(Box::from(Ast::Number(4.0)), Box::from(Ast::Number(6.0))),
+        Ast::Add(Box::from(Ast::Number(4)), Box::from(Ast::Number(6))),
     );
     Ok(())
 }
@@ -255,13 +255,13 @@ fn test_multiple_operations() -> Result<()> {
     assert_eq!(
         Parser::new(
             vec![
-                Ok(Token::Integer(1.0)),
+                Ok(Token::Integer(1)),
                 Ok(Token::Plus),
-                Ok(Token::Integer(2.0)),
+                Ok(Token::Integer(2)),
                 Ok(Token::Plus),
-                Ok(Token::Integer(3.0)),
+                Ok(Token::Integer(3)),
                 Ok(Token::Plus),
-                Ok(Token::Integer(4.0)),
+                Ok(Token::Integer(4)),
                 Ok(Token::Eof)
             ]
             .into_iter()
@@ -270,12 +270,12 @@ fn test_multiple_operations() -> Result<()> {
         Ast::Add(
             Box::from(Ast::Add(
                 Box::from(Ast::Add(
-                    Box::from(Ast::Number(1.0)),
-                    Box::from(Ast::Number(2.0))
+                    Box::from(Ast::Number(1)),
+                    Box::from(Ast::Number(2))
                 )),
-                Box::from(Ast::Number(3.0))
+                Box::from(Ast::Number(3))
             )),
-            Box::from(Ast::Number(4.0))
+            Box::from(Ast::Number(4))
         ),
     );
     Ok(())
@@ -286,14 +286,14 @@ fn test_overriding_precedence() -> Result<()> {
     assert_eq!(
         Parser::new(
             vec![
-                Ok(Token::Integer(1.0)),
+                Ok(Token::Integer(1)),
                 Ok(Token::Multiply),
                 Ok(Token::ParenthesisStart),
-                Ok(Token::Integer(2.0)),
+                Ok(Token::Integer(2)),
                 Ok(Token::Plus),
-                Ok(Token::Integer(3.0)),
+                Ok(Token::Integer(3)),
                 Ok(Token::Multiply),
-                Ok(Token::Integer(4.0)),
+                Ok(Token::Integer(4)),
                 Ok(Token::ParenthesisEnd),
                 Ok(Token::Eof)
             ]
@@ -301,12 +301,12 @@ fn test_overriding_precedence() -> Result<()> {
         )
         .parse_expression()?,
         Ast::Multiply(
-            Box::from(Ast::Number(1.0)),
+            Box::from(Ast::Number(1)),
             Box::from(Ast::Add(
-                Box::from(Ast::Number(2.0)),
+                Box::from(Ast::Number(2)),
                 Box::from(Ast::Multiply(
-                    Box::from(Ast::Number(3.0)),
-                    Box::from(Ast::Number(4.0))
+                    Box::from(Ast::Number(3)),
+                    Box::from(Ast::Number(4))
                 ))
             ))
         ),
@@ -320,7 +320,7 @@ fn test_program() -> Result<()> {
             BEGIN
                 number := 2;
                 a := number;
-                b := 10 * a + 10 * number / 4;
+                b := 10 * a + 10 * number div 4;
                 c := a - - b
             END;
             x := 11;
@@ -337,7 +337,7 @@ fn test_program() -> Result<()> {
                             Variable {
                                 name: "number".to_string()
                             },
-                            Box::from(Ast::Number(2.0))
+                            Box::from(Ast::Number(2))
                         ),
                         Ast::Assign(
                             Variable {
@@ -356,19 +356,19 @@ fn test_program() -> Result<()> {
                             },
                             Box::from(Ast::Add(
                                 Box::from(Ast::Multiply(
-                                    Box::from(Ast::Number(10.0)),
+                                    Box::from(Ast::Number(10)),
                                     Box::from(Ast::Variable(Variable {
                                         name: "a".to_string()
                                     }))
                                 )),
                                 Box::from(Ast::Divide(
                                     Box::from(Ast::Multiply(
-                                        Box::from(Ast::Number(10.0)),
+                                        Box::from(Ast::Number(10)),
                                         Box::from(Ast::Variable(Variable {
                                             name: "number".to_string()
                                         }))
                                     )),
-                                    Box::from(Ast::Number(4.0)),
+                                    Box::from(Ast::Number(4)),
                                 ))
                             ))
                         ),
@@ -391,7 +391,7 @@ fn test_program() -> Result<()> {
                     Variable {
                         name: "x".to_string()
                     },
-                    Box::from(Ast::Number(11.0))
+                    Box::from(Ast::Number(11))
                 ),
                 Ast::NoOp,
             ]

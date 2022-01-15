@@ -9,7 +9,6 @@ pub(crate) enum Token {
     Plus,
     Minus,
     Multiply,
-    Divide,
     ParenthesisStart,
     ParenthesisEnd,
     Eof,
@@ -25,6 +24,7 @@ pub(crate) enum Token {
 pub(crate) enum Keyword {
     Begin,
     End,
+    Div,
 }
 
 pub(crate) struct Lexer {
@@ -66,6 +66,13 @@ impl Lexer {
 
     fn id(&mut self) -> String {
         let mut name = String::new();
+
+        // Allow for starting underscore
+        if let Some('_') = self.current_char {
+            name.push('_');
+            self.advance();
+        }
+
         while self.current_char.filter(|c| c.is_alphanumeric()).is_some() {
             name.push(self.current_char.unwrap());
             self.advance();
@@ -105,10 +112,6 @@ impl Lexer {
                     self.advance();
                     return Ok(Token::Multiply);
                 }
-                '/' => {
-                    self.advance();
-                    return Ok(Token::Divide);
-                }
                 '(' => {
                     self.advance();
                     return Ok(Token::ParenthesisStart);
@@ -117,7 +120,7 @@ impl Lexer {
                     self.advance();
                     return Ok(Token::ParenthesisEnd);
                 }
-                ch if ch.is_alphabetic() => {
+                ch if ch.is_alphabetic() || '_' == ch => {
                     let name = self.id();
                     return match Keyword::from_str(&name) {
                         std::result::Result::Ok(keyword) => Ok(Token::Keyword(keyword)),
@@ -157,13 +160,17 @@ fn test_lexer() -> Result<()> {
         Token::Keyword(Keyword::Begin),
         Token::Identifier("a".to_string()),
         Token::Assign,
-        Token::Integer(2.0),
+        Token::Integer(2),
+        Token::Semi,
+        Token::Identifier("_num".to_string()),
+        Token::Assign,
+        Token::Identifier("a".to_string()),
         Token::Semi,
         Token::Keyword(Keyword::End),
         Token::Dot,
     ];
 
-    let lexer = Lexer::new("BEGIN a := 2; END.");
+    let lexer = Lexer::new("BEGIN a := 2; _num := a; END.");
     for (actual, expected) in lexer.zip(expected_tokens) {
         assert_eq!(actual?, expected);
     }
