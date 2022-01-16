@@ -225,8 +225,7 @@ impl<I: Iterator<Item = Result<Token>>> Parser<I> {
 #[test]
 fn test_simple() -> Result<()> {
     assert_eq!(
-        Parser::new(vec![Ok(Token::Integer(4)), Ok(Token::Eof)].into_iter())
-            .parse_expression()?,
+        Parser::new(vec![Ok(Token::Integer(4)), Ok(Token::Eof)].into_iter()).parse_expression()?,
         Ast::Number(4),
     );
     Ok(())

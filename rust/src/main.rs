@@ -11,7 +11,7 @@ mod interpreter;
 mod lexer;
 mod parser;
 
-type Numeric = i64;
+type Numeric = i32;
 
 #[derive(ClapParser)]
 #[clap(author, version, about)]
@@ -19,6 +19,10 @@ struct CliArgs {
     /// Pascal file to interpret
     #[clap(parse(from_os_str))]
     path: Option<std::path::PathBuf>,
+
+    /// Show the AST
+    #[clap(short)]
+    show_tree: bool,
 }
 
 fn main() -> Result<()> {
@@ -33,7 +37,12 @@ fn main() -> Result<()> {
         let ast = Parser::new(tokens).parse()?;
         let mut interpreter = Interpreter::new();
         let output = interpreter.interpret(&ast);
-        println!("Variables: {:?}", interpreter.global_scope);
+
+        if args.show_tree {
+            println!("Tree:\n{:#?}", ast);
+            println!("\n");
+        }
+        println!("Variables:\n{:#?}", interpreter.global_scope);
         return output;
     }
 
@@ -62,7 +71,7 @@ fn line_to_result(line: String) -> Result<(Numeric, String, String, String)> {
     let ast = Parser::new(tokens).parse_expression()?;
 
     Ok((
-        Interpreter::new().visit_expression(&ast)?,
+        Interpreter::new().interpret_expression(&ast)?,
         format!("{:?}", ast),
         rpn(&ast),
         lisp_notation(&ast),

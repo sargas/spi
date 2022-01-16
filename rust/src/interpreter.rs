@@ -14,42 +14,47 @@ impl Interpreter {
         }
     }
 
-    pub(crate) fn interpret(&mut self, node: &Ast) -> Result<()> {
-        self.visit(node)
-    }
-
-    pub(crate) fn visit_expression(&self, node: &Ast) -> Result<Numeric> {
+    pub(crate) fn interpret_expression(&self, node: &Ast) -> Result<Numeric> {
         Ok(match node {
-            Ast::Add(l, r) => self.visit_expression(l)? + self.visit_expression(r)?,
-            Ast::Subtract(l, r) => self.visit_expression(l)? - self.visit_expression(r)?,
-            Ast::Multiply(l, r) => self.visit_expression(l)? * self.visit_expression(r)?,
-            Ast::Divide(l, r) => self.visit_expression(l)? / self.visit_expression(r)?,
+            Ast::Add(l, r) => self.interpret_expression(l)? + self.interpret_expression(r)?,
+            Ast::Subtract(l, r) => self.interpret_expression(l)? - self.interpret_expression(r)?,
+            Ast::Multiply(l, r) => self.interpret_expression(l)? * self.interpret_expression(r)?,
+            Ast::Divide(l, r) => self.interpret_expression(l)? / self.interpret_expression(r)?,
             Ast::Number(i) => *i,
-            Ast::PositiveUnary(nested) => self.visit_expression(nested)?,
-            Ast::NegativeUnary(nested) => -self.visit_expression(nested)?,
+            Ast::PositiveUnary(nested) => self.interpret_expression(nested)?,
+            Ast::NegativeUnary(nested) => -self.interpret_expression(nested)?,
             Ast::Variable(var) => {
                 *(self
                     .global_scope
                     .get(var.name.clone())
                     .ok_or_else(|| anyhow!("{:} not defined", var.name))?)
             }
-            n => bail!("Invalid node in expression: {:?}", n),
+            Ast::Compound { .. } | Ast::Assign(_, _) | Ast::NoOp => {
+                bail!("Invalid node in expression: {:?}", node)
+            }
         })
     }
 
-    fn visit(&mut self, node: &Ast) -> Result<()> {
+    pub(crate) fn interpret(&mut self, node: &Ast) -> Result<()> {
         match node {
             Ast::Compound { statements } => {
                 for statement in statements {
-                    self.visit(statement)?;
+                    self.interpret(statement)?;
                 }
             }
             Ast::Assign(var, expr) => {
                 self.global_scope
-                    .insert(var.name.clone(), self.visit_expression(expr)?);
+                    .insert(var.name.clone(), self.interpret_expression(expr)?);
             }
             Ast::NoOp => {}
-            n => bail!("Invalid node in program: {:?}", n),
+            Ast::Add(_, _)
+            | Ast::Subtract(_, _)
+            | Ast::Multiply(_, _)
+            | Ast::Divide(_, _)
+            | Ast::Number(_)
+            | Ast::PositiveUnary(_)
+            | Ast::NegativeUnary(_)
+            | Ast::Variable(_) => bail!("Invalid node in program: {:?}", node),
         }
         Ok(())
     }
