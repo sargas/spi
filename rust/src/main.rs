@@ -1,4 +1,4 @@
-use crate::interpreter::{lisp_notation, rpn, Interpreter};
+use crate::interpreter::{lisp_notation, rpn, Interpreter, NumericType};
 use crate::lexer::{Lexer, Token};
 use crate::parser::Parser;
 use anyhow::{Context, Ok, Result};
@@ -11,7 +11,8 @@ mod interpreter;
 mod lexer;
 mod parser;
 
-type Numeric = i32;
+type IntegerMachineType = i32;
+type RealMachineType = f64;
 
 #[derive(ClapParser)]
 #[clap(author, version, about)]
@@ -66,7 +67,7 @@ fn main() -> Result<()> {
     }
 }
 
-fn line_to_result(line: String) -> Result<(Numeric, String, String, String)> {
+fn line_to_result(line: String) -> Result<(NumericType, String, String, String)> {
     let tokens = Lexer::new(&line);
     let ast = Parser::new(tokens).parse_expression()?;
 
@@ -94,10 +95,10 @@ macro_rules! interpreter_tests {
     }
 }
 interpreter_tests! {
-    test_simple_int: ("4", 4),
-    test_addition: ("1 + 4", 5),
-    test_multiple_operators: ("1 + 3 * 5", 16),
-    test_parenthesis: ("(1 + 3) * 5", 20),
-    test_nested_parenthesis: ("7 + 3 * (10 div (12 Div (3 + 1) - 1)) dIV (2 + 3) - 5 - 3 + (8)", 10),
-    test_unary_operations: ("5 - - - + - (3 + 4) - +2", 10),
+    test_simple_int: ("4", NumericType::Integer(4)),
+    test_addition: ("1 + 4", NumericType::Integer(5)),
+    test_multiple_operators: ("1 + 3 * 5", NumericType::Integer(16)),
+    test_parenthesis: ("(1 + 3) * 5", NumericType::Integer(20)),
+    test_nested_parenthesis: ("7 + 3 * (10 div (12 Div (3 + 1) - 1)) dIV (2 + 3) - 5 - 3 + (8)", NumericType::Integer(10)),
+    test_unary_operations: ("5 - - - + - (3 + 4) - +2", NumericType::Integer(10)),
 }

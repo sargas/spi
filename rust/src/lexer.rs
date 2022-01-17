@@ -1,14 +1,16 @@
-use crate::Numeric;
+use crate::{IntegerMachineType, RealMachineType};
 use anyhow::{bail, Context, Ok, Result};
 use std::str::FromStr;
 use strum_macros::EnumString;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Token {
-    Integer(Numeric),
+    IntegerConstant(IntegerMachineType),
+    RealConstant(RealMachineType),
     Plus,
     Minus,
     Multiply,
+    RealDivision,
     ParenthesisStart,
     ParenthesisEnd,
     Eof,
@@ -17,6 +19,8 @@ pub(crate) enum Token {
     Semi,
     Assign,
     Dot,
+    Colon,
+    Comma,
 }
 
 #[derive(Debug, EnumString, PartialEq)]
@@ -24,7 +28,12 @@ pub(crate) enum Token {
 pub(crate) enum Keyword {
     Begin,
     End,
-    Div,
+    #[strum(serialize = "div")]
+    IntegerDiv,
+    Var,
+    Integer,
+    Real,
+    Program,
 }
 
 pub(crate) struct Lexer {
@@ -51,7 +60,7 @@ impl Lexer {
         }
     }
 
-    fn integer(&mut self) -> Numeric {
+    fn integer(&mut self) -> String {
         let mut num = String::from(self.current_char.unwrap());
         self.advance();
         while let Some(i) = self.current_char {
@@ -61,7 +70,18 @@ impl Lexer {
             num.push(i);
             self.advance();
         }
-        num.parse::<Numeric>().unwrap()
+        num
+    }
+
+    fn constant_number(&mut self) -> Token {
+        let mut num = self.integer();
+
+        if let Some('.') = self.current_char {
+            num.push_str(&self.integer());
+            Token::RealConstant(num.parse::<RealMachineType>().unwrap())
+        } else {
+            Token::IntegerConstant(num.parse::<IntegerMachineType>().unwrap())
+        }
     }
 
     fn id(&mut self) -> String {
@@ -78,6 +98,15 @@ impl Lexer {
             self.advance();
         }
         name
+    }
+
+    fn skip_until_comment_ends(&mut self) {
+        let mut current_char = self.current_char;
+        while current_char.unwrap() != '}' {
+            self.advance();
+            current_char = self.current_char;
+        }
+        self.advance(); // skip }
     }
 
     fn peek(&self) -> Option<&char> {
@@ -97,8 +126,12 @@ impl Lexer {
                 ch if ch.is_whitespace() => {
                     self.advance();
                 }
+                '{' => {
+                    self.advance();
+                    self.skip_until_comment_ends();
+                }
                 ch if ch.is_numeric() => {
-                    return Ok(Token::Integer(self.integer()));
+                    return Ok(self.constant_number());
                 }
                 '+' => {
                     self.advance();
@@ -111,6 +144,10 @@ impl Lexer {
                 '*' => {
                     self.advance();
                     return Ok(Token::Multiply);
+                }
+                '/' => {
+                    self.advance();
+                    return Ok(Token::RealDivision);
                 }
                 '(' => {
                     self.advance();
@@ -132,6 +169,10 @@ impl Lexer {
                     self.advance();
                     return Ok(Token::Assign);
                 }
+                ':' => {
+                    self.advance();
+                    return Ok(Token::Colon);
+                }
                 ';' => {
                     self.advance();
                     return Ok(Token::Semi);
@@ -139,6 +180,10 @@ impl Lexer {
                 '.' => {
                     self.advance();
                     return Ok(Token::Dot);
+                }
+                ',' => {
+                    self.advance();
+                    return Ok(Token::Comma);
                 }
                 ch => bail!("Unable to parse {:?}", ch),
             }
@@ -160,17 +205,19 @@ fn test_lexer() -> Result<()> {
         Token::Keyword(Keyword::Begin),
         Token::Identifier("a".to_string()),
         Token::Assign,
-        Token::Integer(2),
+        Token::IntegerConstant(2),
         Token::Semi,
         Token::Identifier("_num".to_string()),
         Token::Assign,
         Token::Identifier("a".to_string()),
+        Token::Multiply,
+        Token::RealConstant(5.0),
         Token::Semi,
         Token::Keyword(Keyword::End),
         Token::Dot,
     ];
 
-    let lexer = Lexer::new("BEGIN a := 2; _num := a; END.");
+    let lexer = Lexer::new("BEGIN a := 2; _num := a * 5.0; END.");
     for (actual, expected) in lexer.zip(expected_tokens) {
         assert_eq!(actual?, expected);
     }
