@@ -1,49 +1,16 @@
+use crate::lexing::token::{Keyword, Token};
 use crate::{IntegerMachineType, RealMachineType};
-use anyhow::{bail, Context, Ok, Result};
+use anyhow::{bail, Context};
 use std::str::FromStr;
-use strum_macros::EnumString;
 
-#[derive(Debug, PartialEq)]
-pub(crate) enum Token {
-    IntegerConstant(IntegerMachineType),
-    RealConstant(RealMachineType),
-    Plus,
-    Minus,
-    Multiply,
-    RealDivision,
-    ParenthesisStart,
-    ParenthesisEnd,
-    Eof,
-    Keyword(Keyword),
-    Identifier(String),
-    Semi,
-    Assign,
-    Dot,
-    Colon,
-    Comma,
-}
-
-#[derive(Debug, EnumString, PartialEq)]
-#[strum(ascii_case_insensitive)]
-pub(crate) enum Keyword {
-    Begin,
-    End,
-    #[strum(serialize = "div")]
-    IntegerDiv,
-    Var,
-    Integer,
-    Real,
-    Program,
-}
-
-pub(crate) struct Lexer {
+pub struct Lexer {
     text: Vec<char>,
     pos: usize,
     current_char: Option<char>,
 }
 
 impl Lexer {
-    pub(crate) fn new(text: &str) -> Lexer {
+    pub fn new(text: &str) -> Lexer {
         Lexer {
             text: text.chars().collect(),
             pos: 0,
@@ -113,9 +80,9 @@ impl Lexer {
         self.text.get(self.pos + 1)
     }
 
-    fn get_next_token(&mut self) -> Result<Token> {
+    fn get_next_token(&mut self) -> anyhow::Result<Token> {
         if self.current_char.is_none() {
-            return Ok(Token::Eof);
+            return anyhow::Ok(Token::Eof);
         }
         loop {
             let current_char = self
@@ -131,59 +98,59 @@ impl Lexer {
                     self.skip_until_comment_ends();
                 }
                 ch if ch.is_numeric() => {
-                    return Ok(self.constant_number());
+                    return anyhow::Ok(self.constant_number());
                 }
                 '+' => {
                     self.advance();
-                    return Ok(Token::Plus);
+                    return anyhow::Ok(Token::Plus);
                 }
                 '-' => {
                     self.advance();
-                    return Ok(Token::Minus);
+                    return anyhow::Ok(Token::Minus);
                 }
                 '*' => {
                     self.advance();
-                    return Ok(Token::Multiply);
+                    return anyhow::Ok(Token::Multiply);
                 }
                 '/' => {
                     self.advance();
-                    return Ok(Token::RealDivision);
+                    return anyhow::Ok(Token::RealDivision);
                 }
                 '(' => {
                     self.advance();
-                    return Ok(Token::ParenthesisStart);
+                    return anyhow::Ok(Token::ParenthesisStart);
                 }
                 ')' => {
                     self.advance();
-                    return Ok(Token::ParenthesisEnd);
+                    return anyhow::Ok(Token::ParenthesisEnd);
                 }
                 ch if ch.is_alphabetic() || '_' == ch => {
                     let name = self.id();
                     return match Keyword::from_str(&name) {
-                        std::result::Result::Ok(keyword) => Ok(Token::Keyword(keyword)),
-                        _ => Ok(Token::Identifier(name)),
+                        std::result::Result::Ok(keyword) => anyhow::Ok(Token::Keyword(keyword)),
+                        _ => anyhow::Ok(Token::Identifier(name)),
                     };
                 }
                 ':' if self.peek().filter(|ch| *ch == &'=').is_some() => {
                     self.advance();
                     self.advance();
-                    return Ok(Token::Assign);
+                    return anyhow::Ok(Token::Assign);
                 }
                 ':' => {
                     self.advance();
-                    return Ok(Token::Colon);
+                    return anyhow::Ok(Token::Colon);
                 }
                 ';' => {
                     self.advance();
-                    return Ok(Token::Semi);
+                    return anyhow::Ok(Token::Semi);
                 }
                 '.' => {
                     self.advance();
-                    return Ok(Token::Dot);
+                    return anyhow::Ok(Token::Dot);
                 }
                 ',' => {
                     self.advance();
-                    return Ok(Token::Comma);
+                    return anyhow::Ok(Token::Comma);
                 }
                 ch => bail!("Unable to parse {:?}", ch),
             }
@@ -192,7 +159,7 @@ impl Lexer {
 }
 
 impl Iterator for Lexer {
-    type Item = Result<Token>;
+    type Item = anyhow::Result<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.get_next_token())
@@ -200,7 +167,7 @@ impl Iterator for Lexer {
 }
 
 #[test]
-fn test_lexer() -> Result<()> {
+fn test_lexer() -> anyhow::Result<()> {
     let expected_tokens = vec![
         Token::Keyword(Keyword::Begin),
         Token::Identifier("a".to_string()),
@@ -221,5 +188,5 @@ fn test_lexer() -> Result<()> {
     for (actual, expected) in lexer.zip(expected_tokens) {
         assert_eq!(actual?, expected);
     }
-    Ok(())
+    anyhow::Ok(())
 }

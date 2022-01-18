@@ -1,18 +1,13 @@
-use crate::interpreter::{lisp_notation, rpn, Interpreter, NumericType};
-use crate::lexer::{Lexer, Token};
-use crate::parser::Parser;
 use anyhow::{Context, Ok, Result};
 use clap::Parser as ClapParser;
 use colored::*;
+use spi::interpreting::interpreter::Interpreter;
+use spi::interpreting::misc::{lisp_notation, rpn};
+use spi::interpreting::types::NumericType;
+use spi::lexing::lexer::Lexer;
+use spi::parsing::parser::Parser;
 use std::io;
 use std::io::{BufRead, Write};
-
-mod interpreter;
-mod lexer;
-mod parser;
-
-type IntegerMachineType = i32;
-type RealMachineType = f64;
 
 #[derive(ClapParser)]
 #[clap(author, version, about)]
