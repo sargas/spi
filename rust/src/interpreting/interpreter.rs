@@ -7,13 +7,15 @@ use case_insensitive_hashmap::CaseInsensitiveHashMap;
 pub struct Interpreter {
     pub global_scope: CaseInsensitiveHashMap<NumericType>,
     pub symbol_table: Option<SymbolTable>,
+    verbose_symbol_table: bool,
 }
 
 impl Interpreter {
-    pub fn new() -> Interpreter {
+    pub fn new(verbose_symbol_table: bool) -> Interpreter {
         Interpreter {
             global_scope: CaseInsensitiveHashMap::new(),
             symbol_table: Option::None,
+            verbose_symbol_table,
         }
     }
 
@@ -51,7 +53,7 @@ impl Interpreter {
     }
 
     pub fn interpret(&mut self, node: &Ast) -> anyhow::Result<()> {
-        self.symbol_table = Some(SymbolTable::build_for(node)?);
+        self.symbol_table = Some(SymbolTable::build_for(node, self.verbose_symbol_table)?);
 
         self.interpret_node(node)
     }
@@ -99,6 +101,6 @@ impl Interpreter {
 
 impl Default for Interpreter {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }

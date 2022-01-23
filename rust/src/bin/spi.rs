@@ -1,5 +1,7 @@
 use anyhow::{Context, Ok, Result};
 use clap::Parser as ClapParser;
+use cli_table::format::Justify;
+use cli_table::{print_stdout, Cell, Style, Table};
 use colored::*;
 use spi::interpreting::interpreter::Interpreter;
 use spi::interpreting::misc::{lisp_notation, rpn};
@@ -17,8 +19,16 @@ struct CliArgs {
     path: Option<std::path::PathBuf>,
 
     /// Show the AST
-    #[clap(short)]
+    #[clap(short('t'))]
     show_tree: bool,
+
+    /// Show Symbol Table Debug Info
+    #[clap(short('s'))]
+    show_symbols: bool,
+
+    /// Show everything
+    #[clap(short('a'))]
+    show_all: bool,
 }
 
 fn main() -> Result<()> {
@@ -31,15 +41,48 @@ fn main() -> Result<()> {
 
         let tokens = Lexer::new(&content);
         let ast = Parser::new(tokens).parse()?;
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::new(args.show_symbols || args.show_all);
         let output = interpreter.interpret(&ast);
 
-        if args.show_tree {
+        if args.show_tree || args.show_all {
             println!("Tree:\n{:#?}", ast);
             println!("\n");
         }
-        println!("Symbol Table:\n{:#?}", interpreter.symbol_table);
-        println!("Variables:\n{:#?}", interpreter.global_scope);
+        if args.show_symbols || args.show_all {
+            println!("\nSymbol Table:");
+            print_stdout(
+                interpreter
+                    .symbol_table
+                    .unwrap()
+                    .symbols
+                    .iter()
+                    .map(|(key, symbol)| {
+                        vec![
+                            key.to_string().cell().bold(true),
+                            symbol.to_string().cell().justify(Justify::Right),
+                        ]
+                    })
+                    .table()
+                    .title(vec!["Name".cell().bold(true), "Symbol".cell().bold(true)]),
+            )?;
+        }
+        println!("\nVariables:");
+        print_stdout(
+            interpreter
+                .global_scope
+                .iter()
+                .map(|(key, value)| {
+                    vec![
+                        key.to_string().cell().bold(true),
+                        value.to_string().cell().justify(Justify::Right),
+                    ]
+                })
+                .table()
+                .title(vec![
+                    "Variables".cell().bold(true),
+                    "Value".cell().bold(true),
+                ]),
+        )?;
         return output;
     }
 
@@ -68,7 +111,7 @@ fn line_to_result(line: String) -> Result<(NumericType, String, String, String)>
     let ast = Parser::new(tokens).parse_expression()?;
 
     Ok((
-        Interpreter::new().interpret_expression(&ast)?,
+        Interpreter::new(false).interpret_expression(&ast)?,
         format!("{:?}", ast),
         rpn(&ast),
         lisp_notation(&ast),

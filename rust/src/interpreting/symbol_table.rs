@@ -6,13 +6,13 @@ use std::string::ToString;
 use strum_macros::Display;
 
 #[derive(Debug)]
-enum Symbol {
+pub enum Symbol {
     BuiltIn(BuiltInTypes),
     Variable { name: String, var_type: String },
 }
 
 #[derive(Display, Debug)]
-enum BuiltInTypes {
+pub enum BuiltInTypes {
     Integer,
     Real,
 }
@@ -37,25 +37,31 @@ impl Symbol {
 
 #[derive(Debug)]
 pub struct SymbolTable {
-    symbols: CaseInsensitiveHashMap<Symbol>,
+    pub symbols: CaseInsensitiveHashMap<Symbol>,
+    verbose: bool,
 }
 
 impl SymbolTable {
     fn define(&mut self, symbol: Symbol) {
-        println!("Define: {}", symbol);
+        if self.verbose {
+            println!("Define: {}", symbol);
+        }
         self.symbols.insert(symbol.symbol_table_key(), symbol);
     }
 
     fn lookup(&self, name: &str) -> Option<&Symbol> {
-        println!("Lookup: {}", name);
+        if self.verbose {
+            println!("Lookup: {}", name);
+        }
         self.symbols.get(name)
     }
 }
 
 impl SymbolTable {
-    pub(crate) fn build_for(program: &Ast) -> Result<SymbolTable> {
+    pub(crate) fn build_for(program: &Ast, verbose: bool) -> Result<SymbolTable> {
         let mut symbol_table = SymbolTable {
             symbols: CaseInsensitiveHashMap::new(),
+            verbose,
         };
 
         symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Integer));
@@ -143,5 +149,5 @@ fn test_part11() {
     use crate::lexing::lexer::Lexer;
     use crate::parsing::parser::Parser;
     let ast = Parser::new(Lexer::new(code)).parse().unwrap();
-    assert!(SymbolTable::build_for(&ast).is_ok());
+    assert!(SymbolTable::build_for(&ast, true).is_ok());
 }

@@ -12,3 +12,4 @@ strum = "0.23"
 strum_macros = "0.23"
 case_insensitive_hashmap = "1.0.0"
 clap = { version = "3.0.7", features = ["derive"] }
+cli-table = "0.4"
