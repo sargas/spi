@@ -1,16 +1,19 @@
+use crate::interpreting::symbol_table::SymbolTable;
 use crate::interpreting::types::NumericType;
 use crate::parsing::ast::Ast;
-use anyhow::{anyhow, bail};
+use anyhow::{anyhow, bail, Error};
 use case_insensitive_hashmap::CaseInsensitiveHashMap;
 
 pub struct Interpreter {
     pub global_scope: CaseInsensitiveHashMap<NumericType>,
+    pub symbol_table: Option<SymbolTable>,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
             global_scope: CaseInsensitiveHashMap::new(),
+            symbol_table: Option::None,
         }
     }
 
@@ -48,10 +51,16 @@ impl Interpreter {
     }
 
     pub fn interpret(&mut self, node: &Ast) -> anyhow::Result<()> {
+        self.symbol_table = Some(SymbolTable::build_for(node)?);
+
+        self.interpret_node(node)
+    }
+
+    fn interpret_node(&mut self, node: &Ast) -> Result<(), Error> {
         match node {
             Ast::Compound { statements } => {
                 for statement in statements {
-                    self.interpret(statement)?;
+                    self.interpret_node(statement)?;
                 }
             }
             Ast::Assign(var, expr) => {
@@ -59,15 +68,15 @@ impl Interpreter {
                     .insert(var.name.clone(), self.interpret_expression(expr)?);
             }
             Ast::NoOp => {}
-            Ast::Program { block, .. } => self.interpret(block)?,
+            Ast::Program { block, .. } => self.interpret_node(block)?,
             Ast::Block {
                 declarations,
                 compound_statements,
             } => {
                 for variable_declaration in declarations {
-                    self.interpret(variable_declaration)?;
+                    self.interpret_node(variable_declaration)?;
                 }
-                self.interpret(compound_statements)?;
+                self.interpret_node(compound_statements)?;
             }
             // TODO for type safety
             Ast::VariableDeclaration { .. } => {}

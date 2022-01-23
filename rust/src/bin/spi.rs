@@ -38,6 +38,7 @@ fn main() -> Result<()> {
             println!("Tree:\n{:#?}", ast);
             println!("\n");
         }
+        println!("Symbol Table:\n{:#?}", interpreter.symbol_table);
         println!("Variables:\n{:#?}", interpreter.global_scope);
         return output;
     }
