@@ -49,6 +49,14 @@ impl Ast {
             bail!("Expected a variable, was {:?}", self)
         }
     }
+
+    pub fn variable(&self) -> Result<&Variable> {
+        if let Ast::Variable(variable) = self {
+            Ok(variable)
+        } else {
+            bail!("Expected a variable, was {:?}", self)
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -57,7 +65,7 @@ pub enum TypeSpec {
     Real,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Variable {
     pub name: String,
 }

@@ -8,6 +8,17 @@ pub struct Parser<I: Iterator<Item = anyhow::Result<Token>>> {
     tokens: I,
 }
 
+macro_rules! eat {
+    ( $self:ident, $token:pat ) => {
+        match &$self.current_token {
+            $token => {
+                $self.advance()?;
+            }
+            t => bail!("Expected {:?}, found {:?}", stringify!($token), t),
+        };
+    };
+}
+
 impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
     pub fn new(tokens: I) -> Parser<I> {
         Parser {
@@ -47,12 +58,8 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
             Token::ParenthesisStart => {
                 self.advance()?;
                 let nested_result = self.expr();
-                if let Token::ParenthesisEnd = self.current_token {
-                    self.advance()?;
-                    nested_result
-                } else {
-                    bail!("Expected ')' instead of {:?}", self.current_token)
-                }
+                eat!(self, Token::ParenthesisEnd);
+                nested_result
             }
             Token::Identifier(_) => self.variable(),
             _ => bail!(
@@ -130,14 +137,8 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
     fn assignment_statement(&mut self) -> anyhow::Result<Ast> {
         let var_node = self.variable()?;
 
-        match &self.current_token {
-            Token::Assign => self.advance()?,
-            t => bail!("Expected assignment operator, found {:?}", t),
-        };
-        let variable = match var_node {
-            Ast::Variable(variable) => variable,
-            _ => panic!("Parser.variable() returned something that isn't a variable!"),
-        };
+        eat!(self, Token::Assign);
+        let variable = var_node.variable()?.clone();
         Ok(Ast::Assign(variable, Box::from(self.expr()?)))
     }
 
@@ -165,15 +166,9 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
 
     /// compound_statement: BEGIN statement_list END
     fn compound_statement(&mut self) -> anyhow::Result<Ast> {
-        match &self.current_token {
-            Token::Keyword(Keyword::Begin) => self.advance()?,
-            t => bail!("Expected BEGIN, found {:?}", t),
-        };
+        eat!(self, Token::Keyword(Keyword::Begin));
         let statements = self.statement_list()?;
-        match &self.current_token {
-            Token::Keyword(Keyword::End) => self.advance()?,
-            t => bail!("Expected END, found {:?}", t),
-        };
+        eat!(self, Token::Keyword(Keyword::End));
 
         Ok(Ast::Compound { statements })
     }
@@ -196,10 +191,7 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
             self.advance()?;
             variable_names.push(self.variable()?);
         }
-        match &self.current_token {
-            Token::Colon => self.advance()?,
-            t => bail!("Expected a colon, found {:?}", t),
-        }
+        eat!(self, Token::Colon);
         let type_spec = self.type_spec()?;
         let mut output = vec![];
         for var in variable_names {
@@ -220,28 +212,21 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
             self.advance()?;
             while let Token::Identifier(_) = &self.current_token {
                 declarations.extend(self.variable_declaration()?);
-                match &self.current_token {
-                    Token::Semi => self.advance()?,
-                    t => bail!("Expected a Semicolon, found {:?}", t),
-                };
+                eat!(self, Token::Semi);
             }
         }
         while let Token::Keyword(Keyword::Procedure) = &self.current_token {
             self.advance()?;
+
             let procedure_name = self.variable()?;
-            if let Token::Semi = &self.current_token { self.advance()?;}
-            else {
-                bail!("Expected semicolon, not {:?}", self.current_token);
-            }
+            eat!(self, Token::Semi);
+
             let block_node = self.block()?;
             declarations.push(Ast::ProcedureDeclaration {
-                name: procedure_name.variable_name()?.to_string(),
+                name: procedure_name.variable()?.name.clone(),
                 block: Box::from(block_node),
             });
-            if let Token::Semi = &self.current_token { self.advance()?;}
-            else {
-                bail!("Expected semicolon, not {:?}", self.current_token);
-            }
+            eat!(self, Token::Semi);
         }
 
         Ok(declarations)
@@ -257,10 +242,7 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
 
     /// program : PROGRAM variable SEMI block DOT
     fn program(&mut self) -> anyhow::Result<Ast> {
-        match &self.current_token {
-            Token::Keyword(Keyword::Program) => self.advance()?,
-            t => bail!("Expected 'PROGRAM', found {:?}", t),
-        };
+        eat!(self, Token::Keyword(Keyword::Program));
         let found_program_name = self.variable()?;
         let program_name = if let Ast::Variable(Variable { name }) = found_program_name {
             name
@@ -268,16 +250,10 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
             bail!("Expected a program name, but got {:?}", found_program_name)
         };
 
-        match &self.current_token {
-            Token::Semi => self.advance()?,
-            t => bail!("Expected ';', found {:?}", t),
-        };
+        eat!(self, Token::Semi);
         let block = self.block()?;
+        eat!(self, Token::Dot);
 
-        match &self.current_token {
-            Token::Dot => self.advance()?,
-            t => bail!("Expected a dot, found {:?}", t),
-        };
         Ok(Program {
             name: program_name,
             block: Box::from(block),
@@ -292,10 +268,7 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
     pub fn parse(&mut self) -> anyhow::Result<Ast> {
         self.advance()?;
         let output = self.program()?;
-        match &self.current_token {
-            Token::Eof => {}
-            t => bail!("Expected the end of the file, found {:?}", t),
-        };
+        eat!(self, Token::Eof);
 
         Ok(output)
     }
