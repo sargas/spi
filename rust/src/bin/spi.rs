@@ -19,15 +19,15 @@ struct CliArgs {
     path: Option<std::path::PathBuf>,
 
     /// Show the AST
-    #[clap(short('t'))]
+    #[clap(short('t'), long)]
     show_tree: bool,
 
     /// Show Symbol Table Debug Info
-    #[clap(short('s'))]
+    #[clap(short('s'), long)]
     show_symbols: bool,
 
     /// Show everything
-    #[clap(short('a'))]
+    #[clap(short('a'), long)]
     show_all: bool,
 }
 

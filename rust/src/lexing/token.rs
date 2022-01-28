@@ -32,4 +32,5 @@ pub enum Keyword {
     Integer,
     Real,
     Program,
+    Procedure,
 }

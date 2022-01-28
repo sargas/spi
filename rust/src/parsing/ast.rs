@@ -1,4 +1,5 @@
 use crate::{IntegerMachineType, RealMachineType};
+use anyhow::{bail, Result};
 
 #[derive(PartialEq, Debug)]
 pub enum Ast {
@@ -22,6 +23,10 @@ pub enum Ast {
         declarations: Vec<Ast>,
         compound_statements: Box<Ast>,
     },
+    ProcedureDeclaration {
+        name: String,
+        block: Box<Ast>,
+    },
     VariableDeclaration {
         variable: Box<Ast>,
         type_spec: Box<Ast>,
@@ -34,6 +39,16 @@ pub enum Ast {
     Variable(Variable),
     Assign(Variable, Box<Ast>),
     NoOp,
+}
+
+impl Ast {
+    pub fn variable_name(&self) -> Result<&str> {
+        if let Ast::Variable(Variable { name }) = self {
+            Ok(name)
+        } else {
+            bail!("Expected a variable, was {:?}", self)
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

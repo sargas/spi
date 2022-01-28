@@ -86,6 +86,7 @@ fn build_symbol_table(symbols: &mut SymbolTable, node: &Ast) -> Result<()> {
         Ast::PositiveUnary(node) => build_symbol_table(symbols, node),
         Ast::NegativeUnary(node) => build_symbol_table(symbols, node),
         Ast::Program { block, .. } => build_symbol_table(symbols, block),
+        Ast::ProcedureDeclaration { .. } => Ok(()), // TODO after part 12
         Ast::Block {
             declarations,
             compound_statements,

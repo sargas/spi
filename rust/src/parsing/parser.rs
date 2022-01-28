@@ -212,7 +212,8 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
     }
 
     /// declarations : VAR (variable_declaration SEMI)+
-    //                     | empty
+    ///                | (PROCEDURE ID SEMI block SEMI)*
+    //                 | empty
     fn declarations(&mut self) -> anyhow::Result<Vec<Ast>> {
         let mut declarations = vec![];
         if let Token::Keyword(Keyword::Var) = &self.current_token {
@@ -223,6 +224,23 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
                     Token::Semi => self.advance()?,
                     t => bail!("Expected a Semicolon, found {:?}", t),
                 };
+            }
+        }
+        while let Token::Keyword(Keyword::Procedure) = &self.current_token {
+            self.advance()?;
+            let procedure_name = self.variable()?;
+            if let Token::Semi = &self.current_token { self.advance()?;}
+            else {
+                bail!("Expected semicolon, not {:?}", self.current_token);
+            }
+            let block_node = self.block()?;
+            declarations.push(Ast::ProcedureDeclaration {
+                name: procedure_name.variable_name()?.to_string(),
+                block: Box::from(block_node),
+            });
+            if let Token::Semi = &self.current_token { self.advance()?;}
+            else {
+                bail!("Expected semicolon, not {:?}", self.current_token);
             }
         }
 
