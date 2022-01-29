@@ -16,7 +16,7 @@ defaults:
     working-directory: ./rust
 
 jobs:
-  release:
+  build:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -53,13 +53,28 @@ jobs:
       - name: Build Release
         run: cargo build --release --all-features
       - run: mv target/release/spi target/release/spi_${{ matrix.os }}
+      - name: Save production artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: spi_${{ matrix.os }}
+          path: rust/target/release/spi_${{ matrix.os }}
+          if-no-files-found: error
+
+  release:
+    name: Release builds
+    runs-on: ubuntu-latest
+    needs: [build, fmt, clippy]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        id: download
       - name: Release To GitHub
         uses: marvinpinto/action-automatic-releases@v1.2.1
         with:
-          automatic_release_tag: ${{ matrix.os }}
+          automatic_release_tag: latest
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: true
-          files: rust/target/release/spi_${{ matrix.os }}
+          files: ${{steps.download.outputs.download-path}}/spi_*/spi_*
 
   fmt:
     name: Rustfmt
