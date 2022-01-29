@@ -1,4 +1,4 @@
-use crate::parsing::ast::{Ast, TypeSpec};
+use crate::parsing::ast::Ast;
 use anyhow::{bail, Result};
 use case_insensitive_hashmap::CaseInsensitiveHashMap;
 use std::fmt::{Display, Formatter};
@@ -42,11 +42,17 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
-    fn define(&mut self, symbol: Symbol) {
+    fn define(&mut self, symbol: Symbol) -> Result<()> {
         if self.verbose {
             println!("Define: {}", symbol);
         }
-        self.symbols.insert(symbol.symbol_table_key(), symbol);
+        let key = symbol.symbol_table_key();
+        if self.symbols.contains_key(key) {
+            bail!("Duplicate identifier: {:?}", symbol)
+        } else {
+            self.symbols.insert(symbol.symbol_table_key(), symbol);
+            Ok(())
+        }
     }
 
     fn lookup(&self, name: &str) -> Option<&Symbol> {
@@ -64,8 +70,8 @@ impl SymbolTable {
             verbose,
         };
 
-        symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Integer));
-        symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Real));
+        symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Integer))?;
+        symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Real))?;
 
         let result = build_symbol_table(&mut symbol_table, program);
 
@@ -101,26 +107,31 @@ fn build_symbol_table(symbols: &mut SymbolTable, node: &Ast) -> Result<()> {
             variable,
             type_spec: type_spec_node,
         } => {
-            let variable_type = match type_spec_node.as_ref() {
-                Ast::Type(TypeSpec::Integer) => BuiltInTypes::Integer,
-                Ast::Type(TypeSpec::Real) => BuiltInTypes::Real,
-                _ => bail!("expected type spec, got {:?}", type_spec_node),
-            };
-            let name = if let Ast::Variable(var) = variable.as_ref() {
-                var.name.clone()
-            } else {
-                bail!("expected variable, got {:?}", variable)
-            };
+            let variable_type = type_spec_node.type_spec()?.to_string();
+            if symbols.lookup(&variable_type).is_none() {
+                bail!("Unknown type: {:?}", variable);
+            }
+            let name = variable.variable()?.name.clone();
+            if symbols.lookup(&name).is_some() {
+                bail!("Duplicate Identifier: {:?}", variable);
+            }
             symbols.define(Symbol::Variable {
                 name,
-                var_type: variable_type.to_string(),
-            });
+                var_type: variable_type,
+            })?;
             Ok(())
         }
         Ast::Compound { statements } => statements
             .iter()
             .try_for_each(|statement| build_symbol_table(symbols, statement)),
-        Ast::Variable(variable) | Ast::Assign(variable, _) => {
+        Ast::Assign(variable, expr) => {
+            build_symbol_table(symbols, expr)?;
+            if symbols.lookup(&variable.name).is_none() {
+                bail!("Unknown variable to assign to: {:?}", variable);
+            }
+            Ok(())
+        }
+        Ast::Variable(variable) => {
             if symbols.lookup(&variable.name).is_none() {
                 bail!("Unknown variable: {:?}", variable);
             }
@@ -151,4 +162,61 @@ fn test_part11() {
     use crate::parsing::parser::Parser;
     let ast = Parser::new(Lexer::new(code)).parse().unwrap();
     assert!(SymbolTable::build_for(&ast, true).is_ok());
+}
+
+#[test]
+fn test_part13_happy_path() {
+    let code = r#"
+        program SymTab4;
+        var x, y : integer;
+
+        begin
+            x := x + y;
+        end.
+    "#;
+
+    use crate::lexing::lexer::Lexer;
+    use crate::parsing::parser::Parser;
+    let ast = Parser::new(Lexer::new(code)).parse().unwrap();
+    assert!(SymbolTable::build_for(&ast, true).is_ok());
+}
+
+#[test]
+fn test_part13_sym_tab_5() {
+    let code = r#"
+        program SymTab5;
+        var x : integer;
+
+        begin
+            x := y;
+        end.
+    "#;
+
+    use crate::lexing::lexer::Lexer;
+    use crate::parsing::parser::Parser;
+    let ast = Parser::new(Lexer::new(code)).parse().unwrap();
+    assert!(SymbolTable::build_for(&ast, true)
+        .expect_err("Expected not to find y")
+        .to_string()
+        .contains("Unknown variable"));
+}
+
+#[test]
+fn test_duplicate_identifiers() {
+    let code = r#"
+        program SymTab6;
+        var x, y : integer;
+        var y : real;
+        begin
+            x := x + y;
+        end.
+    "#;
+
+    use crate::lexing::lexer::Lexer;
+    use crate::parsing::parser::Parser;
+    let ast = Parser::new(Lexer::new(code)).parse().unwrap();
+    assert!(SymbolTable::build_for(&ast, true)
+        .expect_err("Expected y to be defined twice")
+        .to_string()
+        .contains("Duplicate Identifier"));
 }

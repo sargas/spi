@@ -208,7 +208,7 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
     //                 | empty
     fn declarations(&mut self) -> anyhow::Result<Vec<Ast>> {
         let mut declarations = vec![];
-        if let Token::Keyword(Keyword::Var) = &self.current_token {
+        while let Token::Keyword(Keyword::Var) = &self.current_token {
             self.advance()?;
             while let Token::Identifier(_) = &self.current_token {
                 declarations.extend(self.variable_declaration()?);

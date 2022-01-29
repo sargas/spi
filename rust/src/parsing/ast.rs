@@ -42,14 +42,6 @@ pub enum Ast {
 }
 
 impl Ast {
-    pub fn variable_name(&self) -> Result<&str> {
-        if let Ast::Variable(Variable { name }) = self {
-            Ok(name)
-        } else {
-            bail!("Expected a variable, was {:?}", self)
-        }
-    }
-
     pub fn variable(&self) -> Result<&Variable> {
         if let Ast::Variable(variable) = self {
             Ok(variable)
@@ -57,9 +49,16 @@ impl Ast {
             bail!("Expected a variable, was {:?}", self)
         }
     }
+    pub fn type_spec(&self) -> Result<&TypeSpec> {
+        if let Ast::Type(type_spec) = self {
+            Ok(type_spec)
+        } else {
+            bail!("Expected a type spec, was {:?}", self)
+        }
+    }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(strum_macros::Display, PartialEq, Debug, Clone)]
 pub enum TypeSpec {
     Integer,
     Real,
