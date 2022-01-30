@@ -10,6 +10,7 @@ use spi::lexing::lexer::Lexer;
 use spi::parsing::parser::Parser;
 use std::io;
 use std::io::{BufRead, Write};
+use spi::interpreting::symbol_table::SymbolTable;
 
 #[derive(ClapParser)]
 #[clap(author, version, about)]
@@ -49,22 +50,7 @@ fn main() -> Result<()> {
             println!("\n");
         }
         if args.show_symbols || args.show_all {
-            println!("\nSymbol Table:");
-            print_stdout(
-                interpreter
-                    .symbol_table
-                    .unwrap()
-                    .symbols
-                    .iter()
-                    .map(|(key, symbol)| {
-                        vec![
-                            key.to_string().cell().bold(true),
-                            symbol.to_string().cell().justify(Justify::Right),
-                        ]
-                    })
-                    .table()
-                    .title(vec!["Name".cell().bold(true), "Symbol".cell().bold(true)]),
-            )?;
+            display_symbol_table(&interpreter.symbol_table.unwrap())?;
         }
         println!("\nVariables:");
         print_stdout(
@@ -116,6 +102,23 @@ fn line_to_result(line: String) -> Result<(NumericType, String, String, String)>
         rpn(&ast),
         lisp_notation(&ast),
     ))
+}
+
+fn display_symbol_table(symbol_table: &SymbolTable) -> std::io::Result<()> {
+    println!("\nSymbol Table:\n");
+    println!("Scope Name: {}", symbol_table.scope_name);
+    println!("Scope Level: {}", symbol_table.scope_level);
+
+    print_stdout(symbol_table.symbols
+        .iter()
+        .map(|(key, symbol)| {
+            vec![
+                key.to_string().cell().bold(true),
+                symbol.to_string().cell().justify(Justify::Right),
+            ]
+        })
+        .table()
+        .title(vec!["Name".cell().bold(true), "Symbol".cell().bold(true)]))
 }
 
 // based on https://stackoverflow.com/a/34666891

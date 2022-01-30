@@ -38,10 +38,28 @@ impl Symbol {
 #[derive(Debug)]
 pub struct SymbolTable {
     pub symbols: CaseInsensitiveHashMap<Symbol>,
+    pub scope_name: String,
+    pub scope_level: u8,
     verbose: bool,
 }
 
 impl SymbolTable {
+    pub(crate) fn build_for(program: &Ast, verbose: bool) -> Result<SymbolTable> {
+        let mut symbol_table = SymbolTable {
+            symbols: CaseInsensitiveHashMap::new(),
+            scope_name: "global".to_string(),
+            scope_level: 1,
+            verbose,
+        };
+
+        symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Integer))?;
+        symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Real))?;
+
+        let result = build_symbol_table(&mut symbol_table, program);
+
+        result.and(Ok(symbol_table))
+    }
+
     fn define(&mut self, symbol: Symbol) -> Result<()> {
         if self.verbose {
             println!("Define: {}", symbol);
@@ -60,22 +78,6 @@ impl SymbolTable {
             println!("Lookup: {}", name);
         }
         self.symbols.get(name)
-    }
-}
-
-impl SymbolTable {
-    pub(crate) fn build_for(program: &Ast, verbose: bool) -> Result<SymbolTable> {
-        let mut symbol_table = SymbolTable {
-            symbols: CaseInsensitiveHashMap::new(),
-            verbose,
-        };
-
-        symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Integer))?;
-        symbol_table.define(Symbol::BuiltIn(BuiltInTypes::Real))?;
-
-        let result = build_symbol_table(&mut symbol_table, program);
-
-        result.and(Ok(symbol_table))
     }
 }
 
