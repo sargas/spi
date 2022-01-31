@@ -8,7 +8,14 @@ use strum_macros::Display;
 #[derive(Debug)]
 pub enum Symbol {
     BuiltIn(BuiltInTypes),
-    Variable { name: String, var_type: String },
+    Variable {
+        name: String,
+        var_type: String,
+    },
+    ProcedureSymbol {
+        name: String,
+        parameters: Vec<Parameter>,
+    },
 }
 
 #[derive(Display, Debug)]
@@ -17,11 +24,27 @@ pub enum BuiltInTypes {
     Real,
 }
 
+#[derive(Debug)]
+pub struct Parameter {
+    name: String,
+    var_type: String,
+}
+
 impl Display for Symbol {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Symbol::BuiltIn(x) => x.fmt(f),
             Symbol::Variable { name, var_type } => format!("<{}:{}>", name, var_type).fmt(f),
+            Symbol::ProcedureSymbol { name, parameters } => format!(
+                "<{}({})>",
+                name,
+                parameters
+                    .iter()
+                    .map(|p| format!("{}:{}", p.name, p.var_type))
+                    .collect::<Vec<String>>()
+                    .join(",")
+            )
+            .fmt(f),
         }
     }
 }
@@ -31,6 +54,7 @@ impl Symbol {
         match self {
             Symbol::BuiltIn(x) => x.to_string(),
             Symbol::Variable { name, .. } => name.clone(),
+            Symbol::ProcedureSymbol { name, .. } => name.clone(),
         }
     }
 }
@@ -140,6 +164,7 @@ fn build_symbol_table(symbols: &mut SymbolTable, node: &Ast) -> Result<()> {
             Ok(())
         }
         Ast::Type(_) | Ast::NoOp => Ok(()),
+        Ast::Parameter { .. } => Ok(()),
     }
 }
 

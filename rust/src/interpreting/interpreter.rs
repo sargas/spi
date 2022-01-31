@@ -43,6 +43,7 @@ impl Interpreter {
             Ast::Compound { .. }
             | Ast::Assign(_, _)
             | Ast::Program { .. }
+            | Ast::Parameter { .. }
             | Ast::ProcedureDeclaration { .. }
             | Ast::Block { .. }
             | Ast::VariableDeclaration { .. }
@@ -72,6 +73,7 @@ impl Interpreter {
             }
             Ast::NoOp => {}
             Ast::Program { block, .. } => self.interpret_node(block)?,
+            Ast::Parameter { .. } => {}            // TODO after part 14
             Ast::ProcedureDeclaration { .. } => {} // TODO after part 12
             Ast::Block {
                 declarations,

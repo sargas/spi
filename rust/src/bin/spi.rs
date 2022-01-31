@@ -5,12 +5,12 @@ use cli_table::{print_stdout, Cell, Style, Table};
 use colored::*;
 use spi::interpreting::interpreter::Interpreter;
 use spi::interpreting::misc::{lisp_notation, rpn};
+use spi::interpreting::symbol_table::SymbolTable;
 use spi::interpreting::types::NumericType;
 use spi::lexing::lexer::Lexer;
 use spi::parsing::parser::Parser;
 use std::io;
 use std::io::{BufRead, Write};
-use spi::interpreting::symbol_table::SymbolTable;
 
 #[derive(ClapParser)]
 #[clap(author, version, about)]
@@ -109,16 +109,19 @@ fn display_symbol_table(symbol_table: &SymbolTable) -> std::io::Result<()> {
     println!("Scope Name: {}", symbol_table.scope_name);
     println!("Scope Level: {}", symbol_table.scope_level);
 
-    print_stdout(symbol_table.symbols
-        .iter()
-        .map(|(key, symbol)| {
-            vec![
-                key.to_string().cell().bold(true),
-                symbol.to_string().cell().justify(Justify::Right),
-            ]
-        })
-        .table()
-        .title(vec!["Name".cell().bold(true), "Symbol".cell().bold(true)]))
+    print_stdout(
+        symbol_table
+            .symbols
+            .iter()
+            .map(|(key, symbol)| {
+                vec![
+                    key.to_string().cell().bold(true),
+                    symbol.to_string().cell().justify(Justify::Right),
+                ]
+            })
+            .table()
+            .title(vec!["Name".cell().bold(true), "Symbol".cell().bold(true)]),
+    )
 }
 
 // based on https://stackoverflow.com/a/34666891

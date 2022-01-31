@@ -197,15 +197,15 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
         for var in variable_names {
             output.push(Ast::VariableDeclaration {
                 variable: Box::from(var),
-                type_spec: Box::from(Ast::Type(type_spec.clone())),
+                type_spec: Box::from(type_spec.to_ast_clone()),
             })
         }
         Ok(output)
     }
 
     /// declarations : VAR (variable_declaration SEMI)+
-    ///                | (PROCEDURE ID SEMI block SEMI)*
-    //                 | empty
+    ///                | (PROCEDURE ID (LPAREN formal_parameter_list RPAREN)? SEMI block SEMI)*
+    ///                | empty
     fn declarations(&mut self) -> anyhow::Result<Vec<Ast>> {
         let mut declarations = vec![];
         while let Token::Keyword(Keyword::Var) = &self.current_token {
@@ -219,17 +219,58 @@ impl<I: Iterator<Item = anyhow::Result<Token>>> Parser<I> {
             self.advance()?;
 
             let procedure_name = self.variable()?;
+
+            let mut parameters = vec![];
+            if let Token::ParenthesisStart = &self.current_token {
+                self.advance()?;
+                parameters.extend(self.formal_parameter_list()?);
+                eat!(self, Token::ParenthesisEnd);
+            }
+
             eat!(self, Token::Semi);
 
             let block_node = self.block()?;
             declarations.push(Ast::ProcedureDeclaration {
                 name: procedure_name.variable()?.name.clone(),
+                parameters,
                 block: Box::from(block_node),
             });
             eat!(self, Token::Semi);
         }
 
         Ok(declarations)
+    }
+
+    /// formal_parameter_list : formal_parameters
+    ///                       | | formal_parameters SEMI formal_parameter_list
+    fn formal_parameter_list(&mut self) -> anyhow::Result<Vec<Ast>> {
+        let mut output = vec![];
+        output.extend(self.formal_parameters()?);
+        while let Token::Semi = &self.current_token {
+            self.advance()?;
+            output.extend(self.formal_parameters()?);
+        }
+
+        Ok(output)
+    }
+
+    /// formal_parameters : ID (COMMA ID)* COLON type_spec
+    fn formal_parameters(&mut self) -> anyhow::Result<Vec<Ast>> {
+        let mut parameter_names = vec![self.variable()?];
+        while let Token::Comma = &self.current_token {
+            self.advance()?;
+            parameter_names.push(self.variable()?);
+        }
+        eat!(self, Token::Colon);
+        let type_spec = self.type_spec()?;
+
+        Ok(parameter_names
+            .into_iter()
+            .map(|variable| Ast::Parameter {
+                variable: Box::from(variable),
+                type_spec: Box::from(type_spec.to_ast_clone()),
+            })
+            .collect())
     }
 
     /// block : declarations compound_statement

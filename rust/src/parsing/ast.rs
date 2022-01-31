@@ -25,7 +25,12 @@ pub enum Ast {
     },
     ProcedureDeclaration {
         name: String,
+        parameters: Vec<Ast>,
         block: Box<Ast>,
+    },
+    Parameter {
+        variable: Box<Ast>,
+        type_spec: Box<Ast>,
     },
     VariableDeclaration {
         variable: Box<Ast>,
@@ -62,6 +67,12 @@ impl Ast {
 pub enum TypeSpec {
     Integer,
     Real,
+}
+
+impl TypeSpec {
+    pub(crate) fn to_ast_clone(&self) -> Ast {
+        Ast::Type(self.clone())
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]

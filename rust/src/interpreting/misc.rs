@@ -20,6 +20,7 @@ pub fn rpn(node: &Ast) -> String {
         Ast::VariableDeclaration { .. } => todo!(""),
         Ast::Type(_) => todo!(""),
         Ast::ProcedureDeclaration { .. } => todo!(""),
+        Ast::Parameter { .. } => todo!(""),
     }
 }
 
@@ -43,5 +44,6 @@ pub fn lisp_notation(node: &Ast) -> String {
         Ast::VariableDeclaration { .. } => todo!(""),
         Ast::Type(_) => todo!(""),
         Ast::ProcedureDeclaration { .. } => todo!(""),
+        Ast::Parameter { .. } => todo!(""),
     }
 }
